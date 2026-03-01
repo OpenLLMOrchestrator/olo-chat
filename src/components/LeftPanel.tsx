@@ -1,13 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { tenantDisplayName } from '../lib/tenantDisplay'
-import { queueDisplayName } from '../lib/queueDisplayName'
 import type { Tenant } from '../types/tenant'
 import { type SectionConfig, type SectionId } from '../types/layout'
 import { useVisibleSections } from '../hooks/useFeature'
 import { isFeatureEnabled } from '../config/features'
 import { runEventsStore } from '../store/runEvents'
 import { useUIStore } from '../store/ui'
-import { getQueues } from '../api/chatApi'
 
 export interface LeftPanelProps {
   expanded: boolean
@@ -37,19 +35,8 @@ export function LeftPanel({
 }: LeftPanelProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<SectionId>>(new Set())
   const [menuContext, setMenuContext] = useState<MenuContextMenu | null>(null)
-  const [queuesFromApi, setQueuesFromApi] = useState<string[]>([])
   const sections = useVisibleSections()
   const hasEventsToReview = runEventsStore((s) => s.events.length) > 0
-
-  useEffect(() => {
-    if (!tenantId) {
-      setQueuesFromApi([])
-      return
-    }
-    getQueues(tenantId)
-      .then(setQueuesFromApi)
-      .catch(() => setQueuesFromApi([]))
-  }, [tenantId])
 
   const toggleCategory = (id: SectionId) => {
     setExpandedCategories((prev) => {
@@ -85,12 +72,9 @@ export function LeftPanel({
   const closeMenuContext = () => setMenuContext(null)
 
   const getSubOptions = (section: SectionConfig) => {
-    if (section.id === 'chat' || section.id === 'rag') {
-      // Workflow queue names (left bar); pipelines within the selected queue are in Conversation panel
-      return queuesFromApi.map((name) => ({
-        id: name,
-        label: queueDisplayName(name),
-      }))
+    if (section.id === 'chat') {
+      // Chat has only "Conversation" as submenu; queues live in the Conversation panel dropdown
+      return section.subOptions ?? []
     }
     const list =
       runSelected &&

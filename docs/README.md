@@ -8,7 +8,7 @@ Frontend for the **Olo** chat flow. It provides a chat UI that talks to the **ol
 
 | Doc | Description |
 |-----|-------------|
-| **[UI_FEATURES.md](./UI_FEATURES.md)** | All UI features: top bar, left panel (tenant, sections, queues), main content (Chat, RAG, Documents), Tools panel (Conversation), Properties panel (Events, tenant config), URL/query, resizable panels, feature flags. |
+| **[UI_FEATURES.md](./UI_FEATURES.md)** | All UI features: top bar, left panel (tenant, sections), main content (Chat, Knowledge, Documents), Tools panel (Conversation / Knowledge sources), Properties panel (Events, tenant config), URL/query, resizable panels, feature flags. |
 | **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Technical architecture: stack, routing, Zustand state, API layer, config, lib, component tree, and Chat data flow. |
 | **[CHAT_UI.md](./CHAT_UI.md)** | Chat section in detail: APIs used, queue vs pipeline, UI behavior, execution model. |
 | **[DOCKER.md](./DOCKER.md)** | Docker build/run, env vars, Docker Compose (dev/prod), GitHub Actions. |
@@ -17,9 +17,10 @@ Frontend for the **Olo** chat flow. It provides a chat UI that talks to the **ol
 
 ## Overview
 
-- **Chat** — Primary view: create a session, send messages, and see run events (PLANNER, MODEL, TOOL, HUMAN, plus WebSocket PING/PONG liveness) streamed in real time. Backed by `POST /api/sessions/{sessionId}/messages`, `GET /api/runs/{runId}/events` (SSE), and optional WebSocket `/ws` for run events and liveness.
-- **Tenant & queues** — Top dropdown uses `GET /api/tenants` (default tenant from backend config; Redis-discovered tenants when available). Under Chat and RAG, queues are listed from `GET /api/tenants/{tenantId}/queues` (Redis keys `<tenantId>:olo:kernel:config:*`). Selecting a queue loads config via `GET /api/tenants/{tenantId}/queues/{queueName}/config`; pipelines from config drive the Conversation pipeline dropdown.
-- **Other sections** (Build, Run, Investigate, System) — Additional views; some APIs (e.g. tenant configuration) may require a separate backend or configuration.
+- **Chat** — Create a session, send messages, and see run events (PLANNER, MODEL, TOOL, HUMAN, plus WebSocket PING/PONG liveness) streamed in real time. Backed by `POST /api/sessions`, `POST /api/sessions/{sessionId}/messages`, `GET /api/runs/{runId}/events` (SSE), and optional WebSocket `/ws`.
+- **Knowledge** — Three sub-options: **Sources** (list of knowledge sources in the second panel), **Create new**, **Status** (indexed, processing). Main content and list are placeholders until APIs are wired.
+- **Documents** — **Upload / manage raw files**: select or enter a knowledge source, choose files or folder (drag-drop or browse), then **Start RAG** to trigger the upload workflow (queue/pipeline from `VITE_RAG_QUEUE`, `VITE_RAG_PIPELINE`).
+- **Tenant & queues** — Top dropdown uses `GET /api/tenants`. Under Chat, queues from `GET /api/tenants/{tenantId}/queues`; queue config drives the Conversation pipeline dropdown.
 
 The app defaults to the **Chat** section and uses the **olo** backend as the source of truth for chat (sessions, messages, runs, execution events, tenants, queues).
 
@@ -65,7 +66,7 @@ The chat UI is designed to work with the **olo** backend in this repo:
 
 ## Chat flow (high level)
 
-1. **Session** — On first load, the app creates a session via `POST /api/sessions` with a tenant ID (default tenant from backend config when no JWT).
+1. **Session** — On first load (or New chat), the app creates a session via `POST /api/sessions` with `tenantId`, and optionally `taskQueue`, `pipelineId`, `ragId` (RAG section), and `overrides` (future). See [CHAT_UI.md](./CHAT_UI.md) for the full contract.
 2. **Send message** — User types and sends; frontend calls `POST /api/sessions/{sessionId}/messages` with `content`. Backend creates the message and run, starts the Temporal workflow, and returns `messageId` and `runId`.
 3. **Run events** — Frontend subscribes to `GET /api/runs/{runId}/events` (SSE) and shows PLANNER, MODEL, TOOL, HUMAN (and SYSTEM) events as they arrive. When a MODEL node completes with output, that content is shown as the assistant reply.
 
@@ -77,8 +78,9 @@ For full flow details (planner → tool → model → human → final answer), s
 
 - `src/api/chatApi.ts` — Chat API client: sessions, messages, SSE run events, health, tenants, queues, queue config (pipelines). All use `/api` (base from `VITE_API_BASE`).
 - `src/components/LeftPanel.tsx` — Section nav; tenant dropdown (GET /api/tenants); Chat/RAG with queue sub-options.
-- `src/components/MainContent.tsx` — Renders chat/rag content; `QueuesList` for Chat/RAG; `ChatView` for conversation.
-- `src/components/ToolsPanel.tsx` — Conversation sidebar: pipeline dropdown from queue config, tools list.
+- `src/components/MainContent.tsx` — Renders main content: `ChatView` for Chat, `KnowledgeView` for Knowledge (Sources / Create new / Status), `RAGUploadView` for Documents (upload).
+- `src/components/ToolsPanel.tsx` — **Chat**: Conversation sidebar (pipeline, New chat, sessions list). **Knowledge**: list of knowledge sources (`KnowledgeSourcesList`). Hidden for Documents.
+- `src/api/ragApi.ts` — Documents upload (`POST /api/rag/upload`), knowledge source options from `VITE_RAG_OPTIONS`; queue/pipeline from `VITE_RAG_QUEUE`, `VITE_RAG_PIPELINE`.
 - `src/components/EventsList.tsx` — Run events (and WebSocket PING/PONG) in the right panel; bell toggles Events panel.
 - `src/components/PropertiesPanel.tsx` — Right side panel (Events or tenant config); independent scroll for Run Events list.
 - `src/store/runEvents.ts` — Run events and liveness events (WebSocket PING/PONG); fed by SSE and `useWebSocketLiveness`.
@@ -91,4 +93,5 @@ For full flow details (planner → tool → model → human → final answer), s
 
 - **Backend URL** — In development, set `VITE_API_BASE=http://localhost:7080` in `.env.development`. The Vite proxy sends `/api` to that base; see `vite.config.ts` and `server.proxy`.
 - **Tenant** — Chat uses `tenantId` from the URL query (`?tenant=...`) or the backend’s default tenant (`GET /api/tenants` returns `[{ "id": "...", "name": "Default" }]` when JWT is disabled). See [WEBSOCKET.md](../olo/docs/WEBSOCKET.md).
-- **Panels** — Left panel (tenant + section + queues), Conversation (tools + pipeline), and Events (run events) each have independent resize handles and scroll: left menu scrolls; Conversation panel content scrolls; Run Events list has its own scrollbar. The bell toggles the Events panel.
+- **Documents upload** — Set `VITE_RAG_OPTIONS` (comma-separated knowledge source ids) for the Documents upload dropdown. Set `VITE_RAG_QUEUE` and `VITE_RAG_PIPELINE` for the upload workflow. See [DOCKER.md](./DOCKER.md).
+- **Panels** — Left panel (tenant + sections), Conversation (Chat: pipeline, New chat, sessions; Knowledge: knowledge sources list), and Events (Chat run events). The Events toggle opens/closes the right panel.

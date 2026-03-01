@@ -156,18 +156,31 @@ export async function deleteSession(sessionId: string): Promise<void> {
   if (!res.ok) throw new Error(`Delete session failed: ${res.status}`)
 }
 
+/** Options for POST /api/sessions. Backend uses tenantId, taskQueue, queueName, pipelineId, and optional overrides (future). */
+export interface CreateSessionBody {
+  tenantId: string
+  taskQueue?: string
+  /** Queue name stored on the session (same as taskQueue when creating). */
+  queueName?: string
+  pipelineId?: string
+  overrides?: Record<string, unknown>
+}
+
 export async function createSession(
   tenantId: string,
-  options?: { queueName?: string; pipelineId?: string }
+  options?: { taskQueue?: string; queueName?: string; pipelineId?: string; overrides?: Record<string, unknown> }
 ): Promise<CreateSessionResponse> {
+  const body: CreateSessionBody = {
+    tenantId,
+    taskQueue: options?.taskQueue,
+    queueName: options?.queueName ?? options?.taskQueue,
+    pipelineId: options?.pipelineId,
+    overrides: options?.overrides,
+  }
   const res = await fetch(`${API}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      tenantId,
-      queueName: options?.queueName,
-      pipelineId: options?.pipelineId,
-    }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`Create session failed: ${res.status}`)
   return res.json()

@@ -1,17 +1,16 @@
 import { create } from 'zustand'
 
-/** Selected pipeline in the Conversation panel (within the current queue). Used to scope session list and new sessions per queue+pipeline. */
+/** Queue (from GET .../queues) and pipeline (from queue config) selected in the Conversation panel; scopes session list and new sessions. */
 export interface ConversationPanelState {
+  selectedQueueId: string
+  setSelectedQueueId: (id: string) => void
   selectedPipelineId: string
   setSelectedPipelineId: (id: string) => void
-  /** Selected RAG in the Conversation panel (RAG section only). Listed between Pipeline and New chat. */
-  selectedRagId: string
-  setSelectedRagId: (id: string) => void
 }
 
 export const conversationPanelStore = create<ConversationPanelState>((set) => ({
+  selectedQueueId: '',
+  setSelectedQueueId: (selectedQueueId) => set({ selectedQueueId }),
   selectedPipelineId: '',
   setSelectedPipelineId: (selectedPipelineId) => set({ selectedPipelineId }),
-  selectedRagId: '',
-  setSelectedRagId: (selectedRagId) => set({ selectedRagId }),
 }))

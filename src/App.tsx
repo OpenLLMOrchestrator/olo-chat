@@ -207,7 +207,7 @@ function App() {
           visible
           onResize={(delta) => useUIStore.getState().setPanelWidthLeft(useUIStore.getState().panelWidthLeft + delta)}
         />
-        {!isTenantConfig && sectionId !== 'documents' && (
+        {!isTenantConfig && (sectionId === 'chat' || sectionId === 'knowledge') && (
           <>
             <ToolsPanel
               expanded={toolsPanelExpanded}
@@ -252,7 +252,7 @@ function App() {
         >
           {sectionId === 'chat' ? (
             <EventsList />
-          ) : isTenantConfig ? (
+          ) : sectionId === 'knowledge' ? undefined : isTenantConfig ? (
             <TenantConfigForm
               tenant={configSelectedTenant}
               isAddingNew={configIsAddingNew}

@@ -22,17 +22,17 @@ describe('App routing integration', () => {
     vi.mocked(isFeatureEnabled).mockImplementation((id) => {
       const defaults: Record<string, boolean> = {
         chat: true,
-        rag: true,
+        knowledge: true,
         documents: true,
       }
       return defaults[id as string] ?? true
     })
   })
 
-  it('redirects to default path when section is disabled (e.g. rag off)', async () => {
-    vi.mocked(isFeatureEnabled).mockImplementation((id) => id !== 'rag')
+  it('redirects to default path when section is disabled (e.g. knowledge off)', async () => {
+    vi.mocked(isFeatureEnabled).mockImplementation((id) => id !== 'knowledge')
     render(
-      <MemoryRouter initialEntries={['/rag/overview']}>
+      <MemoryRouter initialEntries={['/knowledge/sources']}>
         <App />
       </MemoryRouter>
     )

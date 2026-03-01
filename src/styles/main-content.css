@@ -85,7 +85,18 @@
   min-height: 0;
 }
 
-/* Queues list (Redis <tenantId>:olo:kernel:config:*) under Chat and RAG */
+/* Knowledge section main content */
+.knowledge-view {
+  padding: 0.5rem 0;
+}
+.knowledge-view-description {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #a1a1aa;
+  line-height: 1.5;
+}
+
+/* Queues list (Redis <tenantId>:olo:kernel:config:*) under Chat */
 .queues-list {
   flex-shrink: 0;
   padding: 0.75rem 1.25rem;

@@ -37,7 +37,7 @@ All global UI and domain state lives in Zustand stores under `src/store/`.
 | **ui** (`store/ui.ts`) | Panel expanded state (left, tools, properties), panel widths (persisted to `localStorage`), theme (light/dark, persisted), current navigation (sectionId, subId, runId, tenantId). URL sync in `App` pushes path/query into this store. |
 | **chatSessions** (`store/chatSessions.ts`) | List of session summaries and the selected session ID. Updated when sessions are fetched or user selects a session. |
 | **runEvents** (`store/runEvents.ts`) | Current run ID and list of run events (SSE/WebSocket). `addEvent()` appends events; `setOnRunEventCallback()` registers a callback used by ChatView (e.g. to poll run response or refetch messages). Liveness (PING/PONG) events are stored here too but filtered out in the Events list UI. |
-| **conversationPanel** (`store/conversationPanel.ts`) | Selected pipeline ID (within the current queue). Used to scope session list and new-session creation. |
+| **conversationPanel** (`store/conversationPanel.ts`) | Selected pipeline ID (within the current queue). Scopes session list and new-session creation for Chat. |
 | **tenantConfig** (`store/tenantConfig.ts`) | Tenants list (from `GET /api/tenants`), loading flag, selected tenant for config form, “adding new” flag. Actions: loadTenants, selectTenant, startAddNew, saveTenant, deleteTenant. Tenant CRUD uses `api/rest.ts`; list comes from `chatApi.getTenants()`. |
 
 Stores are used via `store((s) => s.x)` for subscriptions; actions are called as `store.getState().action()` or from components that already have the selector.
@@ -49,6 +49,7 @@ Stores are used via `store((s) => s.x)` for subscriptions; actions are called as
 | Module | Purpose |
 |--------|---------|
 | **chatApi** (`api/chatApi.ts`) | All olo backend calls: health, tenants, queues, queue config, sessions (create, list, delete, delete all), messages (list), send message, runs (get, events SSE, response). Base URL is `VITE_API_BASE` + `/api`. |
+| **ragApi** (`api/ragApi.ts`) | Documents upload `POST /api/rag/upload` (FormData: ragId, files; optional taskQueue, pipelineId from env). `getExistingRAGOptions()` returns ids from `VITE_RAG_OPTIONS` for the Documents upload dropdown. |
 | **rest** (`api/rest.ts`) | Tenant configuration REST API (save, update, delete tenant) used by the tenant config store. May point to a different base than the chat backend in some setups. |
 
 Types (e.g. `ChatMessageDto`, `RunEventDto`, `SessionSummaryDto`, `TenantDto`, `QueueConfigDto`) are defined in `chatApi.ts` or `types/tenant.ts`.
@@ -59,8 +60,8 @@ Types (e.g. `ChatMessageDto`, `RunEventDto`, `SessionSummaryDto`, `TenantDto`, `
 
 | Module | Purpose |
 |--------|---------|
-| **features** (`config/features.ts`) | Feature flags per section (chat, rag, documents). `isFeatureEnabled(id)` is used to hide sections and redirect invalid section paths. |
-| **layout** (`types/layout.ts`) | `SECTIONS` array: section id, label, subtitle, `subOptions`, optional `runSelectedOptions`. Drives left-panel menu and valid sub-ids. |
+| **features** (`config/features.ts`) | Feature flags per section (chat, knowledge, documents). `isFeatureEnabled(id)` is used to hide sections and redirect invalid section paths. |
+| **layout** (`types/layout.ts`) | `SECTIONS` array: Chat (conversation + queues), Knowledge (sources, create, status), Documents (upload). Drives left-panel menu and valid sub-ids. |
 | **toolRegistry** (`config/toolRegistry.ts`) | Map of tool id → metadata (label, description, slot). Optional map of tool id → React component. Tools receive `ToolContext` (sectionId, subId, runSelected, storeContext). `getToolsForView(sectionId, subId, runSelected)` returns tools for the current view; layout can attach `toolIds` to sub-options. |
 
 ---
@@ -86,11 +87,12 @@ App
 └── app-body (CSS vars for panel widths)
     ├── LeftPanel (tenant, sections, queues)
     ├── PanelResizeHandle (left)
-    ├── ToolsPanel (pipelines, sessions, New chat, Delete, tools)  [hidden for documents / tenant config]
+    ├── ToolsPanel (pipeline; RAG dropdown in RAG section; New chat, sessions, Delete, tools)  [hidden for documents / tenant config]
     ├── PanelResizeHandle (tools)
     ├── MainContent
-    │   ├── ChatView (when sectionId === 'chat') — messages, input, send, run events subscription
-    │   └── placeholders for RAG / Documents
+    │   ├── ChatView (when sectionId === 'chat' or 'rag') — same conversation UI: messages, input, send, run events
+    │   ├── RAGUploadView (when sectionId === 'documents') — RAG token, file/folder, Start RAG
+    │   └── placeholder for other sections
     ├── PanelResizeHandle (properties)
     └── PropertiesPanel (Events list or TenantConfigForm)
         ├── EventsList (Chat)

@@ -11,7 +11,7 @@ const meta: Meta<typeof ToolsPanel> = {
   argTypes: {
     expanded: { control: 'boolean' },
     onToggle: { action: 'toggle' },
-    sectionId: { control: 'select', options: ['chat', 'rag', 'documents', null] },
+    sectionId: { control: 'select', options: ['chat', 'knowledge', 'documents', null] },
     subId: { control: 'text' },
     runSelected: { control: 'boolean' },
   },
@@ -46,12 +46,12 @@ export const Expanded: Story = {
   },
 }
 
-export const RAG: Story = {
+export const Knowledge: Story = {
   args: {
     ...base,
     expanded: true,
-    sectionId: 'rag',
-    subId: 'overview',
+    sectionId: 'knowledge',
+    subId: 'sources',
     runSelected: false,
   },
 }
@@ -61,7 +61,7 @@ export const Documents: Story = {
     ...base,
     expanded: true,
     sectionId: 'documents',
-    subId: 'rag-upload',
+    subId: 'upload',
     runSelected: false,
   },
 }

@@ -52,6 +52,28 @@ function extractAssistantText(output: unknown): string | null {
   return null
 }
 
+/** Shown when assistant has no real response (empty or metadata-only e.g. {"source":"temporal"}). */
+const EMPTY_RESPONSE_MESSAGE = 'Apologise, Couldn\'t generate the response for your query.'
+
+function formatAssistantContent(content: string | null | undefined): string {
+  const t = content?.trim()
+  if (!t) return EMPTY_RESPONSE_MESSAGE
+  if (t.startsWith('{') && t.endsWith('}')) {
+    try {
+      const o = JSON.parse(t) as Record<string, unknown>
+      if (typeof o === 'object' && o !== null) {
+        const hasContent = [o.content, o.text, o.message].some(
+          (v) => typeof v === 'string' && v.trim().length > 0
+        )
+        if (!hasContent) return EMPTY_RESPONSE_MESSAGE
+      }
+    } catch {
+      // not valid JSON, show as-is
+    }
+  }
+  return t
+}
+
 const COMMON_MESSAGES = [
   'Hello, what can you help me with?',
   'Summarize this in a few bullet points.',
@@ -90,6 +112,8 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
   const [queriedResponse, setQueriedResponse] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const unsubscribeRunRef = useRef<(() => void) | null>(null)
+  /** Session id we just created (New chat); avoid clearing selection when list doesn't include it yet. */
+  const lastCreatedSessionIdRef = useRef<string | null>(null)
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -100,7 +124,7 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
   }, [])
 
   const fetchSessions = useCallback(() => {
-    if (!connected || !tenantId) return
+    if (!tenantId) return
     setSessionsLoading(true)
     const queue = taskQueue ? queueDisplayName(taskQueue) : undefined
     const pipeline = selectedPipelineId || undefined
@@ -112,17 +136,26 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
         if (data.length > 0 && (!current || !inList)) {
           setSelectedSessionId(data[0].sessionId)
         } else if (current && !inList) {
-          setSelectedSessionId(null)
+          if (current !== lastCreatedSessionIdRef.current) {
+            setSelectedSessionId(null)
+          } else {
+            lastCreatedSessionIdRef.current = null
+          }
         }
       })
       .catch(() => setSessions([]))
       .finally(() => setSessionsLoading(false))
-  }, [connected, tenantId, taskQueue, selectedPipelineId, setSessions, setSelectedSessionId])
+  }, [tenantId, taskQueue, selectedPipelineId, setSessions, setSelectedSessionId])
 
   useEffect(() => {
-    if (!connected || !tenantId) return
+    if (!tenantId) return
+    if (!taskQueue) {
+      setSessions([])
+      setSelectedSessionId(null)
+      return
+    }
     fetchSessions()
-  }, [connected, tenantId, taskQueue, selectedPipelineId, fetchSessions])
+  }, [tenantId, taskQueue, selectedPipelineId, fetchSessions])
 
   useEffect(() => {
     if (sessions.length > 0 && !sessionId) {
@@ -159,6 +192,7 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
 
   const handleNewChat = useCallback(() => {
     if (!tenantId || sending) return
+    const { selectedQueueId: q, selectedPipelineId: p } = conversationPanelStore.getState()
     setError(null)
     setRunEvents([])
     setRunCompletedFromPoll(false)
@@ -166,16 +200,23 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
     runEventsStore.getState().clear()
     unsubscribeRunRef.current?.()
     createSession(tenantId, {
-      queueName: taskQueue ? queueDisplayName(taskQueue) : undefined,
-      pipelineId: selectedPipelineId || undefined,
+      taskQueue: q ? queueDisplayName(q) : undefined,
+      pipelineId: p || undefined,
     })
       .then((r) => {
+        lastCreatedSessionIdRef.current = r.sessionId
+        const now = Date.now()
+        const prev = chatSessionsStore.getState().sessions
+        setSessions([
+          { sessionId: r.sessionId, tenantId, createdAt: now, lastActivityAt: now },
+          ...prev,
+        ])
         setSelectedSessionId(r.sessionId)
         setMessages([])
         fetchSessions()
       })
       .catch((e) => setError(String(e.message)))
-  }, [tenantId, taskQueue, selectedPipelineId, sending, fetchSessions, setSelectedSessionId])
+  }, [tenantId, sending, fetchSessions, setSelectedSessionId])
 
   const newChatTriggerRef = useRef(0)
   useEffect(() => {
@@ -195,15 +236,35 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
     setRunCompletedFromPoll(false)
     setQueriedResponse(null)
     runEventsStore.getState().clear()
+    // Show user message in main panel immediately (align with previous behavior)
+    const optimisticUser: ChatMessageDto = {
+      messageId: `opt-${Date.now()}`,
+      sessionId,
+      role: 'user',
+      content: text,
+      runId: '',
+      createdAt: Date.now(),
+    }
+    setMessages((prev) => [...prev, optimisticUser])
+    const { selectedQueueId: q } = conversationPanelStore.getState()
     console.log('[Chat] A. sendMessage HTTP start')
     sendMessage(sessionId, text, {
-      taskQueue: taskQueue ? queueDisplayName(taskQueue) : undefined,
+      taskQueue: q ? queueDisplayName(q) : undefined,
     })
       .then(({ runId }) => {
         console.log('[Chat] B. sendMessage HTTP resolved', { runId })
         setActiveRunId(runId)
         runEventsStore.getState().setRun(runId)
-        listMessages(sessionId).then(setMessages).catch(() => {})
+        listMessages(sessionId)
+          .then((data) => {
+            setMessages((prev) => {
+              if (data.length > 0) return data
+              const hasOptimistic = prev.some((m) => String(m.messageId).startsWith('opt-'))
+              if (hasOptimistic) return prev
+              return data
+            })
+          })
+          .catch(() => {})
         fetchSessions()
         unsubscribeRunRef.current?.()
 
@@ -249,11 +310,12 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
         setError(String(e.message))
         setSending(false)
       })
-  }, [input, sessionId, sending, taskQueue, fetchSessions])
+  }, [input, sessionId, sending, fetchSessions])
 
   const handleResend = useCallback(
     (content: string) => {
       if (!content?.trim() || !sessionId || sending) return
+      const { selectedQueueId: q } = conversationPanelStore.getState()
       setSending(true)
       setError(null)
       setRunEvents([])
@@ -261,7 +323,7 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
       setQueriedResponse(null)
       runEventsStore.getState().clear()
       sendMessage(sessionId, content.trim(), {
-        taskQueue: taskQueue ? queueDisplayName(taskQueue) : undefined,
+        taskQueue: q ? queueDisplayName(q) : undefined,
       })
         .then(({ runId }) => {
           console.log('[Chat Resend] B. sendMessage HTTP resolved', { runId })
@@ -314,7 +376,7 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
           setSending(false)
         })
     },
-    [sessionId, sending, taskQueue, fetchSessions]
+    [sessionId, sending, fetchSessions]
   )
 
   useEffect(() => {
@@ -433,7 +495,9 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
                         </button>
                       )}
                     </div>
-                    <div className="chat-view-message-content">{m.content}</div>
+                    <div className="chat-view-message-content">
+                      {m.role === 'assistant' ? formatAssistantContent(m.content) : m.content}
+                    </div>
                   </div>
                 </div>
               )
@@ -444,7 +508,7 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
                   <div className="chat-view-message-header">
                     <span className="chat-view-message-role">assistant</span>
                   </div>
-                  <div className="chat-view-message-content">{displayAssistantText}</div>
+                  <div className="chat-view-message-content">{formatAssistantContent(displayAssistantText)}</div>
                 </div>
               </div>
             )}

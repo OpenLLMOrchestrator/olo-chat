@@ -12,13 +12,18 @@ export function getSharedWebSocket(accessToken: string | null | undefined): WebS
   if (!url) return null
   if (socket?.readyState === WebSocket.OPEN && url === currentUrl) return socket
   if (socket) {
-    try {
-      socket.close()
-    } catch {
-      // ignore
+    if (socket.readyState === WebSocket.CONNECTING) {
+      socket = null
+      currentUrl = null
+    } else {
+      try {
+        socket.close()
+      } catch {
+        // ignore
+      }
+      socket = null
+      currentUrl = null
     }
-    socket = null
-    currentUrl = null
   }
   currentUrl = url
   socket = new WebSocket(url)

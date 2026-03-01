@@ -31,14 +31,14 @@ describe('routes', () => {
         subId: 'conversation',
         runId: null,
       })
-      expect(parsePath('/rag/overview')).toEqual({
-        sectionId: 'rag',
-        subId: 'overview',
+      expect(parsePath('/knowledge/sources')).toEqual({
+        sectionId: 'knowledge',
+        subId: 'sources',
         runId: null,
       })
-      expect(parsePath('/documents/rag-upload')).toEqual({
+      expect(parsePath('/documents/upload')).toEqual({
         sectionId: 'documents',
-        subId: 'rag-upload',
+        subId: 'upload',
         runId: null,
       })
     })
@@ -54,15 +54,23 @@ describe('routes', () => {
         subId: 'conversation',
         runId: null,
       })
-      expect(parsePath('/rag/overview/')).toEqual({
-        sectionId: 'rag',
-        subId: 'overview',
+      expect(parsePath('/knowledge/sources/')).toEqual({
+        sectionId: 'knowledge',
+        subId: 'sources',
         runId: null,
       })
     })
 
     it('falls back to default sub-option when sub is invalid', () => {
-      const r = parsePath('/chat/unknown-sub')
+      const r = parsePath('/knowledge/unknown-sub')
+      expect(r).not.toBeNull()
+      expect(r!.sectionId).toBe('knowledge')
+      expect(r!.subId).toBe('sources')
+      expect(r!.runId).toBeNull()
+    })
+
+    it('chat with invalid sub (e.g. old queue path) falls back to conversation', () => {
+      const r = parsePath('/chat/some-queue-name')
       expect(r).not.toBeNull()
       expect(r!.sectionId).toBe('chat')
       expect(r!.subId).toBe('conversation')
@@ -73,8 +81,8 @@ describe('routes', () => {
   describe('buildPath', () => {
     it('builds section + sub path', () => {
       expect(buildPath('chat', 'conversation')).toBe('/chat/conversation')
-      expect(buildPath('rag', 'overview')).toBe('/rag/overview')
-      expect(buildPath('documents', 'rag-upload')).toBe('/documents/rag-upload')
+      expect(buildPath('knowledge', 'sources')).toBe('/knowledge/sources')
+      expect(buildPath('documents', 'upload')).toBe('/documents/upload')
     })
 
     it('ignores runId (no run-level routes)', () => {
@@ -95,8 +103,8 @@ describe('routes', () => {
     })
 
     it('encodes tenantId in query', () => {
-      expect(buildPathWithTenant('/rag/overview', 'a=b&c')).toBe(
-        '/rag/overview?tenant=a%3Db%26c'
+      expect(buildPathWithTenant('/knowledge/sources', 'a=b&c')).toBe(
+        '/knowledge/sources?tenant=a%3Db%26c'
       )
     })
   })
@@ -163,15 +171,15 @@ describe('routes', () => {
   describe('getDefaultSubId', () => {
     it('returns first subOption for section', () => {
       expect(getDefaultSubId('chat')).toBe('conversation')
-      expect(getDefaultSubId('rag')).toBe('overview')
-      expect(getDefaultSubId('documents')).toBe('rag-upload')
+      expect(getDefaultSubId('knowledge')).toBe('sources')
+      expect(getDefaultSubId('documents')).toBe('upload')
     })
   })
 
   describe('getRunLevelDefaultSubId', () => {
     it('returns overview for sections with no runSelectedOptions', () => {
       expect(getRunLevelDefaultSubId('chat')).toBe('overview')
-      expect(getRunLevelDefaultSubId('rag')).toBe('overview')
+      expect(getRunLevelDefaultSubId('knowledge')).toBe('overview')
       expect(getRunLevelDefaultSubId('documents')).toBe('overview')
     })
   })
@@ -181,9 +189,9 @@ describe('routes', () => {
       expect(DEFAULT_PATH).toBe('/chat/conversation')
     })
 
-    it('VALID_SECTION_IDS includes chat, rag, documents', () => {
+    it('VALID_SECTION_IDS includes chat, knowledge, documents', () => {
       expect(VALID_SECTION_IDS).toContain('chat')
-      expect(VALID_SECTION_IDS).toContain('rag')
+      expect(VALID_SECTION_IDS).toContain('knowledge')
       expect(VALID_SECTION_IDS).toContain('documents')
       expect(VALID_SECTION_IDS).toHaveLength(3)
     })

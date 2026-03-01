@@ -1,10 +1,10 @@
 /**
- * Menu: Chat, RAG, Documents.
+ * Menu: Chat, Knowledge, Documents.
  * Section IDs are stable for URLs; labels are display-only.
  */
 export type SectionId =
   | 'chat'
-  | 'rag'
+  | 'knowledge'
   | 'documents'
 
 export interface SubOption {
@@ -33,11 +33,13 @@ export const SECTIONS: SectionConfig[] = [
     ],
   },
   {
-    id: 'rag',
-    label: 'RAG',
-    subtitle: 'Retrieval-augmented generation',
+    id: 'knowledge',
+    label: 'Knowledge',
+    subtitle: 'Knowledge sources and status',
     subOptions: [
-      { id: 'overview', label: 'Overview', description: 'RAG configuration and status' },
+      { id: 'sources', label: 'Sources', description: 'List of knowledge sources (in second panel)' },
+      { id: 'create', label: 'Create new', description: 'Create new knowledge source' },
+      { id: 'status', label: 'Status', description: 'Indexed, processing' },
     ],
   },
   {
@@ -45,7 +47,7 @@ export const SECTIONS: SectionConfig[] = [
     label: 'Documents',
     subtitle: 'Document management',
     subOptions: [
-      { id: 'rag-upload', label: 'RAG upload', description: 'Upload documents with an existing or new RAG token' },
+      { id: 'upload', label: 'Upload / manage raw files', description: 'Upload and manage raw files' },
     ],
   },
 ]

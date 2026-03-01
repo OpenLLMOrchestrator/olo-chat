@@ -1,8 +1,10 @@
 import { SECTIONS, type SectionId } from '../types/layout'
 import { ChatView } from './ChatView'
+import { KnowledgeView } from './KnowledgeView'
 import { RAGUploadView } from './RAGUploadView'
 import type { Tenant } from '../types/tenant'
 import { queueDisplayName } from '../lib/queueDisplayName'
+import { conversationPanelStore } from '../store/conversationPanel'
 
 export interface MainContentProps {
   sectionId: SectionId | null
@@ -37,6 +39,7 @@ export function MainContent({
   newChatTrigger = 0,
 }: MainContentProps) {
   const section = sectionId ? SECTIONS.find((s) => s.id === sectionId) : null
+  const selectedQueueId = conversationPanelStore((s) => s.selectedQueueId)
 
   if (!section) {
     return (
@@ -48,21 +51,31 @@ export function MainContent({
     )
   }
 
-  if (sectionId === 'chat' || sectionId === 'rag') {
-    const options = section.subOptions
-    const resolvedLabel = options.find((o) => o.id === subId)?.label ?? (subId || section.label)
-    const currentLabel = resolvedLabel?.includes(':') ? queueDisplayName(resolvedLabel) : resolvedLabel
+  if (sectionId === 'chat') {
     return (
       <main className="main-content main-content-chat">
         <div className="main-content-header">
-          <h1 className="main-content-title">{section.label}</h1>
-          <span className="main-content-subtitle">
-            {' '}
-            → {sectionId === 'chat' ? 'Conversation with Olo backend' : currentLabel}
-          </span>
+          <h1 className="main-content-title">Chat</h1>
+          <span className="main-content-subtitle"> → Conversation with Olo backend</span>
         </div>
         <div className="main-content-body main-content-body-chat">
-          <ChatView tenantId={tenantId || undefined} taskQueue={subId || undefined} newChatTrigger={newChatTrigger} />
+          <ChatView tenantId={tenantId || undefined} taskQueue={selectedQueueId || undefined} newChatTrigger={newChatTrigger} />
+        </div>
+      </main>
+    )
+  }
+
+  if (sectionId === 'knowledge') {
+    const options = section.subOptions
+    const resolvedLabel = options.find((o) => o.id === subId)?.label ?? (subId || section.label)
+    return (
+      <main className="main-content">
+        <div className="main-content-header">
+          <h1 className="main-content-title">Knowledge</h1>
+          <span className="main-content-subtitle"> → {resolvedLabel}</span>
+        </div>
+        <div className="main-content-body">
+          <KnowledgeView subId={subId} />
         </div>
       </main>
     )
@@ -81,8 +94,12 @@ export function MainContent({
         </h1>
       </div>
       <div className="main-content-body">
-        {sectionId === 'documents' ? (
+        {sectionId === 'documents' && subId === 'upload' ? (
           <RAGUploadView />
+        ) : sectionId === 'documents' ? (
+          <div className="main-content-placeholder-inner">
+            <p>Upload / manage raw files.</p>
+          </div>
         ) : (
           <div className="main-content-placeholder-inner">
             <p>Select a category from the left panel.</p>

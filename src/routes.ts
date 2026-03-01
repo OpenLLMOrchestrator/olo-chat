@@ -1,7 +1,7 @@
 import type { SectionId } from './types/layout'
 import { SECTIONS } from './types/layout'
 
-export const VALID_SECTION_IDS: SectionId[] = ['chat', 'rag', 'documents']
+export const VALID_SECTION_IDS: SectionId[] = ['chat', 'knowledge', 'documents']
 
 function isSectionId(s: string): s is SectionId {
   return VALID_SECTION_IDS.includes(s as SectionId)
@@ -19,9 +19,6 @@ function getListSubId(sectionId: SectionId): string {
 }
 
 function isValidSubId(sectionId: SectionId, subId: string, forRunLevel: boolean): boolean {
-  if (sectionId === 'chat' || sectionId === 'rag') {
-    return subId.length > 0
-  }
   const section = SECTIONS.find((s) => s.id === sectionId)
   if (!section) return false
   const options = forRunLevel ? (section.runSelectedOptions ?? []) : (section.subOptions ?? [])

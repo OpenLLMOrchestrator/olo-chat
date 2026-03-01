@@ -3,7 +3,7 @@
  */
 export const features = {
   chat: true,
-  rag: true,
+  knowledge: true,
   documents: true,
 } as const
 
@@ -11,7 +11,7 @@ export type FeatureId = keyof typeof features
 
 export const FEATURE_FLAG_META: Partial<Record<FeatureId, { owner: string; removeBy: string }>> = {
   chat: { owner: 'platform', removeBy: 'n/a (core)' },
-  rag: { owner: 'platform', removeBy: 'n/a (core)' },
+  knowledge: { owner: 'platform', removeBy: 'n/a (core)' },
   documents: { owner: 'platform', removeBy: 'n/a (core)' },
 }
 

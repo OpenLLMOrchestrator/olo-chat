@@ -156,9 +156,8 @@
   border-bottom: 1px solid #27272a;
 }
 
-/* Pipeline dropdown under Conversation when a queue is selected (Chat/RAG) */
-.conversation-pipeline-dropdown,
-.conversation-rag-dropdown {
+/* Pipeline dropdown under Conversation when a queue is selected (Chat) */
+.conversation-pipeline-dropdown {
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid #27272a;
   display: flex;
@@ -193,6 +192,16 @@
 }
 
 /* New chat button: Conversation block, right below pipeline list */
+/* Knowledge sources list (second panel when section is Knowledge) */
+.knowledge-sources-list {
+  padding: 0.5rem 0.75rem;
+}
+.knowledge-sources-list-empty {
+  font-size: 0.85rem;
+  color: #71717a;
+  line-height: 1.4;
+}
+
 .conversation-new-chat-wrap {
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid #27272a;
