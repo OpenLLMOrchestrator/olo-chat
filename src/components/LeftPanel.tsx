@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { tenantDisplayName } from '../lib/tenantDisplay'
+import { queueDisplayName } from '../lib/queueDisplayName'
 import type { Tenant } from '../types/tenant'
 import { type SectionConfig, type SectionId } from '../types/layout'
 import { useVisibleSections } from '../hooks/useFeature'
@@ -85,7 +86,11 @@ export function LeftPanel({
 
   const getSubOptions = (section: SectionConfig) => {
     if (section.id === 'chat' || section.id === 'rag') {
-      return queuesFromApi.map((name) => ({ id: name, label: name }))
+      // Workflow queue names (left bar); pipelines within the selected queue are in Conversation panel
+      return queuesFromApi.map((name) => ({
+        id: name,
+        label: queueDisplayName(name),
+      }))
     }
     const list =
       runSelected &&

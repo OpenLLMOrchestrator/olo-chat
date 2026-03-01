@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getQueues } from '../api/chatApi'
+import { queueDisplayName } from '../lib/queueDisplayName'
 
 export interface QueuesListProps {
   tenantId: string
@@ -49,7 +50,9 @@ export function QueuesList({ tenantId, className }: QueuesListProps) {
       <ul className="queues-list-list">
         {queues.map((name) => (
           <li key={name} className="queues-list-item">
-            <code className="queues-list-name">{name}</code>
+            <code className="queues-list-name" title={name}>
+              {queueDisplayName(name)}
+            </code>
           </li>
         ))}
       </ul>

@@ -116,6 +116,19 @@
 [data-theme="light"] .error-state-message { color: #dc2626; }
 [data-theme="light"] .loading-state-spinner { border-color: #e4e4e7; border-top-color: #3b82f6; }
 
+[data-theme="light"] .chat-view-suggestions { border-top-color: #e4e4e7; background: #f4f4f5; }
+[data-theme="light"] .chat-view-suggestion-chip {
+  color: #52525b;
+  background: #e4e4e7;
+  border-color: #d4d4d8;
+}
+[data-theme="light"] .chat-view-suggestion-chip:hover:not(:disabled) {
+  background: #d4d4d8;
+  color: #18181b;
+  border-color: #a1a1aa;
+}
+[data-theme="light"] .chat-view-input-bar { border-top-color: #e4e4e7; background: #f4f4f5; }
+
 /* Scrollbars: align with theme (dark default) */
 * {
   scrollbar-width: thin;

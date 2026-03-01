@@ -54,6 +54,7 @@ function App() {
 
   const runSelected = false
   const isTenantConfig = false
+  const [newChatTrigger, setNewChatTrigger] = useState(0)
 
   // URL → store sync: path, tenant, and panel query (enables deep links, back/forward, bookmarking)
   useEffect(() => {
@@ -216,6 +217,7 @@ function App() {
               runSelected={runSelected}
               tenantId={tenantId}
               storeContext={{}}
+              onNewChat={() => setNewChatTrigger((t) => t + 1)}
             />
             <PanelResizeHandle
               panel="tools"
@@ -237,6 +239,7 @@ function App() {
           onSelectTenant={handleSelectTenant}
           onAddNewTenant={handleAddNewTenant}
           onDeleteTenant={(id) => tenantConfigStore.getState().deleteTenant(id)}
+          newChatTrigger={newChatTrigger}
         />
         <PanelResizeHandle
           panel="properties"

@@ -39,9 +39,16 @@ Payload examples for all of the above are in [olo/docs/API_PAYLOADS.md](../olo/d
 
 ---
 
+## Queue vs pipeline
+
+- **Queue** (left bar) — The **workflow queue name** (e.g. `olo-chat-queue-oolama:1.0`). Listed under Chat and RAG from `GET /api/tenants/{tenantId}/queues`; selecting one sets the current queue for the conversation.
+- **Pipeline** (Conversation panel) — A **classification within the selected queue**, used by workflow execution. Loaded from the queue’s config (`GET /api/tenants/{tenantId}/queues/{queueName}/config`); the config’s `pipelines` array populates the Pipeline dropdown. One queue can expose multiple pipelines (e.g. default, rag).
+
+---
+
 ## UI behavior
 
-- **Tenant & queues** — The top dropdown is filled from `GET /api/tenants`. Under Chat and RAG, the selected tenant’s queues are loaded with `GET /api/tenants/{tenantId}/queues`. Choosing a queue loads its config (`GET /api/tenants/{tenantId}/queues/{queueName}/config`); the Conversation sidebar shows a pipeline dropdown from config’s `pipelines` when a queue is selected.
+- **Tenant & queues** — The top dropdown is filled from `GET /api/tenants`. Under Chat and RAG, the selected tenant’s **workflow queues** are loaded with `GET /api/tenants/{tenantId}/queues`. Choosing a queue loads its config; the Conversation sidebar then shows the **Pipeline** dropdown (classification within that queue) from the config’s `pipelines`.
 - **Session** — On first load (and when no session is stored), the app creates one session per tenant (default tenant from backend when no `?tenant=` in the URL). All messages in the view belong to that session.
 - **Message list** — Fetched with `GET /api/sessions/{sessionId}/messages`. After each send, the list is refetched so the new user message appears.
 - **Run events** — After sending, the frontend opens the SSE stream for the returned `runId` and appends each event to the **Run events** list in the right panel. The app also connects to the WebSocket and sends PING every 10s; PING and PONG are shown in the same Run events list (liveness). The Events panel has its own scrollbar; the bell in the header toggles the Events panel.

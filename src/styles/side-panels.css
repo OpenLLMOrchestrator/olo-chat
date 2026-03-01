@@ -191,6 +191,117 @@
   color: #71717a;
 }
 
+/* New chat button: Conversation block, right below pipeline list */
+.conversation-new-chat-wrap {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #27272a;
+}
+.conversation-new-chat {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #fff;
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.conversation-new-chat:hover {
+  background: #2563eb;
+}
+
+/* Conversation list: sessions one below the other, Delete all at bottom */
+.conversation-sessions-block {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.conversation-sessions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.conversation-session-item {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.conversation-session-btn {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  text-align: left;
+  color: #a1a1aa;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.conversation-session-btn:hover {
+  background: #27272a;
+  color: #e4e4e7;
+}
+.conversation-session-btn.active {
+  background: #27272a;
+  color: #fafafa;
+  border-left-color: #3b82f6;
+}
+.conversation-session-delete {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: #71717a;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.conversation-session-delete:hover:not(:disabled) {
+  color: #f87171;
+  background: #450a0a;
+}
+.conversation-session-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.conversation-delete-all-wrap {
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid #27272a;
+  flex-shrink: 0;
+}
+.conversation-delete-all {
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  color: #f87171;
+  background: transparent;
+  border: 1px solid #7f1d1d;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.conversation-delete-all:hover:not(:disabled) {
+  background: #450a0a;
+  color: #fca5a5;
+}
+.conversation-delete-all:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .side-panel-placeholder {
   padding: 0.75rem;
   color: #71717a;
@@ -237,11 +348,6 @@
   color: #71717a;
 }
 
-.tools-list-empty {
-  color: #71717a;
-  font-style: italic;
-}
-
 /* Events list (right panel) */
 .events-list {
   display: flex;
@@ -264,6 +370,13 @@
 .events-list-run-id {
   font-weight: 400;
   color: #71717a;
+  margin-left: 0.25rem;
+}
+
+.events-list-header-limit {
+  font-weight: 400;
+  color: #71717a;
+  font-size: 0.7rem;
   margin-left: 0.25rem;
 }
 

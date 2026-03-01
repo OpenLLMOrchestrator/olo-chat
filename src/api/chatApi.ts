@@ -11,6 +11,14 @@ export interface CreateSessionResponse {
   sessionId: string
 }
 
+/** Session summary for list (GET /api/tenants/:tenantId/sessions). Most recently active first. */
+export interface SessionSummaryDto {
+  sessionId: string
+  tenantId: string
+  createdAt: number
+  lastActivityAt?: number
+}
+
 export interface SendMessageResponse {
   messageId: string
   runId: string
@@ -59,7 +67,7 @@ export async function getTenants(): Promise<TenantDto[]> {
   }
 }
 
-/** Kernel config queues from Redis keys <tenantId>:olo:kernel:config:* (for Chat and RAG). */
+/** Workflow queue names from Redis keys <tenantId>:olo:kernel:config:* (left bar under Chat/RAG). */
 export async function getQueues(tenantId: string): Promise<string[]> {
   if (!tenantId) return []
   try {
@@ -72,7 +80,10 @@ export async function getQueues(tenantId: string): Promise<string[]> {
   }
 }
 
-/** Queue config from Redis key <tenantId>:olo:kernel:config:<queueName>. Used for pipeline dropdown in Conversation. */
+/**
+ * Config for a workflow queue from Redis key <tenantId>:olo:kernel:config:<queueName>.
+ * Pipelines are the classification within the queue (handled by workflow execution); used for the Pipeline dropdown in Conversation.
+ */
 export interface QueueConfigDto {
   pipelines?: Array<string | { id: string; name?: string }>
   [key: string]: unknown
@@ -102,11 +113,61 @@ export async function getChatBackendHealth(): Promise<boolean> {
   }
 }
 
-export async function createSession(tenantId: string): Promise<CreateSessionResponse> {
+/** List chat sessions for a tenant, optionally scoped by queue and pipeline (per workflow queue and pipeline view). */
+export async function listSessions(
+  tenantId: string,
+  options?: { queue?: string; pipeline?: string }
+): Promise<SessionSummaryDto[]> {
+  if (!tenantId) return []
+  try {
+    const params = new URLSearchParams()
+    if (options?.queue) params.set('queue', options.queue)
+    if (options?.pipeline) params.set('pipeline', options.pipeline)
+    const qs = params.toString()
+    const url = `${API}/tenants/${encodeURIComponent(tenantId)}/sessions` + (qs ? `?${qs}` : '')
+    const res = await fetch(url)
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
+  }
+}
+
+/** Delete all chat sessions for the tenant, optionally scoped by queue and pipeline (current view). */
+export async function deleteAllSessions(
+  tenantId: string,
+  options?: { queue?: string; pipeline?: string }
+): Promise<void> {
+  if (!tenantId) return
+  const params = new URLSearchParams()
+  if (options?.queue) params.set('queue', options.queue)
+  if (options?.pipeline) params.set('pipeline', options.pipeline)
+  const qs = params.toString()
+  const url = `${API}/tenants/${encodeURIComponent(tenantId)}/sessions` + (qs ? `?${qs}` : '')
+  const res = await fetch(url, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`Delete all sessions failed: ${res.status}`)
+}
+
+/** Delete one chat session and its messages. Used by Conversation per-conversation delete button. */
+export async function deleteSession(sessionId: string): Promise<void> {
+  if (!sessionId) return
+  const res = await fetch(`${API}/sessions/${encodeURIComponent(sessionId)}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`Delete session failed: ${res.status}`)
+}
+
+export async function createSession(
+  tenantId: string,
+  options?: { queueName?: string; pipelineId?: string }
+): Promise<CreateSessionResponse> {
   const res = await fetch(`${API}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tenantId }),
+    body: JSON.stringify({
+      tenantId,
+      queueName: options?.queueName,
+      pipelineId: options?.pipelineId,
+    }),
   })
   if (!res.ok) throw new Error(`Create session failed: ${res.status}`)
   return res.json()
@@ -132,6 +193,46 @@ export async function listMessages(sessionId: string): Promise<ChatMessageDto[]>
   return res.json()
 }
 
+/** Run status from GET /api/runs/{runId}. Used to un-gray when workflow completes but SSE did not deliver MODEL event. */
+export interface RunStatusDto {
+  runId: string
+  status: string
+}
+
+export async function getRun(runId: string): Promise<RunStatusDto | null> {
+  try {
+    const res = await fetch(`${API}/runs/${encodeURIComponent(runId)}`)
+    if (!res.ok) return null
+    const data = await res.json()
+    return { runId: data.runId ?? runId, status: data.status ?? 'running' }
+  } catch {
+    return null
+  }
+}
+
+/** Run response from GET /api/runs/{runId}/response. Use when receiving events or while run in progress to show current assistant reply. */
+export interface RunResponseDto {
+  runId: string
+  response: string
+}
+
+export async function getRunResponse(runId: string): Promise<RunResponseDto | null> {
+  try {
+    const res = await fetch(`${API}/runs/${encodeURIComponent(runId)}/response`)
+    if (!res.ok) return null
+    const data = await res.json()
+    return { runId: data.runId ?? runId, response: data.response ?? '' }
+  } catch {
+    return null
+  }
+}
+
+const SSE_DEBUG = true // set false to disable run-events step logging
+
+function sseLog(step: string, detail?: unknown) {
+  if (SSE_DEBUG) console.log('[Chat SSE]', step, detail !== undefined ? detail : '')
+}
+
 /**
  * Subscribe to run events via SSE. Calls onEvent for each event (catch-up then live).
  * Returns an abort function to close the stream.
@@ -143,41 +244,103 @@ export function streamRunEvents(
 ): () => void {
   const ac = new AbortController()
   const url = `${API}/runs/${encodeURIComponent(runId)}/events`
+  sseLog('1. SSE fetch start', { runId, url })
   fetch(url, { signal: ac.signal, headers: { Accept: 'text/event-stream' } })
     .then(async (res) => {
+      sseLog('2. SSE response received', { ok: res.ok, status: res.status, hasBody: !!res.body })
       if (!res.ok || !res.body) {
+        sseLog('2b. SSE failed (no body or !ok)', res.status)
         onError?.(new Error(`SSE failed: ${res.status}`))
         return
       }
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buf = ''
+      let eventCount = 0
       try {
         while (true) {
           const { done, value } = await reader.read()
-          if (done) break
+          sseLog('3. SSE read chunk', { done, chunkLen: value?.length ?? 0 })
+          if (done) {
+            sseLog('4. SSE stream done (connection closed)')
+            break
+          }
           buf += decoder.decode(value, { stream: true })
-          const blocks = buf.split(/\n\n+/)
-          buf = blocks.pop() ?? ''
-          for (const block of blocks) {
-            const line = block.split('\n').find((l) => l.startsWith('data: '))
-            const dataLine = line?.slice(6)
-            if (dataLine != null && dataLine !== '[DONE]') {
-              try {
-                const event = JSON.parse(dataLine) as RunEventDto
-                onEvent(event)
-              } catch {
-                // skip malformed
+          // Skip SSE comment lines (e.g. server heartbeat ": ping")
+          while (/^\s*:/.test(buf)) {
+            const nl = buf.indexOf('\n')
+            if (nl === -1) break
+            buf = buf.slice(nl + 1)
+          }
+          // Parse SSE without splitting on \n\n (payload can contain \n in response text)
+          while (buf.includes('data: ')) {
+            const dataIdx = buf.indexOf('data: ')
+            const payloadStart = dataIdx + 6
+            const firstBrace = buf.indexOf('{', payloadStart)
+            if (firstBrace === -1) break
+            let depth = 0
+            let inString = false
+            let stringChar = ''
+            let escape = false
+            let end = -1
+            for (let i = firstBrace; i < buf.length; i++) {
+              const c = buf[i]
+              if (escape) {
+                escape = false
+                continue
               }
+              if (c === '\\' && inString) {
+                escape = true
+                continue
+              }
+              if (inString) {
+                if (c === stringChar) inString = false
+                continue
+              }
+              if (c === '"' || c === "'") {
+                inString = true
+                stringChar = c
+                continue
+              }
+              if (c === '{') depth++
+              else if (c === '}') {
+                depth--
+                if (depth === 0) {
+                  end = i + 1
+                  break
+                }
+              }
+            }
+            if (end === -1) break
+            const dataLine = buf.slice(firstBrace, end)
+            buf = buf.slice(end).replace(/^\s*\n?/, '')
+            if (dataLine === '[DONE]') continue
+            try {
+              const event = JSON.parse(dataLine) as RunEventDto
+              eventCount++
+              sseLog(`5. SSE event #${eventCount}`, {
+                nodeType: event.nodeType,
+                status: event.status,
+                hasOutput: event.output != null,
+                outputKeys: event.output && typeof event.output === 'object' ? Object.keys(event.output as object) : null,
+              })
+              onEvent(event)
+            } catch (parseErr) {
+              sseLog('5b. SSE parse error', parseErr)
             }
           }
         }
       } finally {
         reader.releaseLock()
+        sseLog('6. SSE reader released', { totalEvents: eventCount })
       }
     })
     .catch((err) => {
+      sseLog('7. SSE fetch/stream catch', { name: err?.name, message: err?.message })
       if (err?.name !== 'AbortError') onError?.(err)
     })
-  return () => ac.abort()
+  return () => {
+    sseLog('8. SSE abort() called')
+    ac.abort()
+  }
 }

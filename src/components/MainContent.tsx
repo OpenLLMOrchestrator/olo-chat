@@ -1,7 +1,7 @@
 import { SECTIONS, type SectionId } from '../types/layout'
 import { ChatView } from './ChatView'
-import { QueuesList } from './QueuesList'
 import type { Tenant } from '../types/tenant'
+import { queueDisplayName } from '../lib/queueDisplayName'
 
 export interface MainContentProps {
   sectionId: SectionId | null
@@ -16,6 +16,8 @@ export interface MainContentProps {
   onSelectTenant?: (tenant: Tenant) => void
   onAddNewTenant?: () => void
   onDeleteTenant?: (id: string) => void
+  /** When this increments, ChatView starts a new chat (from Conversation panel button). */
+  newChatTrigger?: number
 }
 
 export function MainContent({
@@ -31,6 +33,7 @@ export function MainContent({
   onSelectTenant,
   onAddNewTenant,
   onDeleteTenant,
+  newChatTrigger = 0,
 }: MainContentProps) {
   const section = sectionId ? SECTIONS.find((s) => s.id === sectionId) : null
 
@@ -52,15 +55,15 @@ export function MainContent({
           <span className="main-content-subtitle"> → Conversation with Olo backend</span>
         </div>
         <div className="main-content-body main-content-body-chat">
-          <QueuesList tenantId={tenantId || 'default'} className="main-content-queues" />
-          <ChatView tenantId={tenantId || undefined} />
+          <ChatView tenantId={tenantId || undefined} taskQueue={subId || undefined} newChatTrigger={newChatTrigger} />
         </div>
       </main>
     )
   }
 
   const options = section.subOptions
-  const currentLabel = options.find((o) => o.id === subId)?.label ?? (subId || section.label)
+  const resolvedLabel = options.find((o) => o.id === subId)?.label ?? (subId || section.label)
+  const currentLabel = resolvedLabel?.includes(':') ? queueDisplayName(resolvedLabel) : resolvedLabel
 
   return (
     <main className="main-content">
@@ -71,9 +74,6 @@ export function MainContent({
         </h1>
       </div>
       <div className="main-content-body">
-        {sectionId === 'rag' && (
-          <QueuesList tenantId={tenantId || 'default'} className="main-content-queues" />
-        )}
         <div className="main-content-placeholder-inner">
           {sectionId === 'rag' && (
             <>RAG: <strong>{currentLabel}</strong> — configuration and status (placeholder).</>

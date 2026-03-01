@@ -1,16 +1,25 @@
 import { useState, useRef, useEffect } from 'react'
 import { runEventsStore } from '../store/runEvents'
 
+const RUN_EVENTS_DISPLAY_LIMIT = 25
+
+/** Exclude ping/pong liveness events from run events display. */
+function isRunEvent(ev: { nodeType?: string }): boolean {
+  return (ev.nodeType ?? '').toLowerCase() !== 'liveness'
+}
+
 export function EventsList() {
   const { runId, events } = runEventsStore()
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const listEndRef = useRef<HTMLUListElement>(null)
+  const runEventsOnly = events.filter(isRunEvent)
+  const displayEvents = runEventsOnly.slice(-RUN_EVENTS_DISPLAY_LIMIT)
 
   useEffect(() => {
     listEndRef.current?.scrollTo?.({ top: listEndRef.current.scrollHeight, behavior: 'smooth' })
-  }, [events.length])
+  }, [runEventsOnly.length])
 
-  if (events.length === 0) {
+  if (displayEvents.length === 0) {
     return (
       <div className="events-list">
         <div className="events-list-header">Run events</div>
@@ -25,9 +34,12 @@ export function EventsList() {
     <div className="events-list">
       <div className="events-list-header">
         Run events {runId && <span className="events-list-run-id">{runId.slice(0, 8)}…</span>}
+        {runEventsOnly.length > RUN_EVENTS_DISPLAY_LIMIT && (
+          <span className="events-list-header-limit"> (last {RUN_EVENTS_DISPLAY_LIMIT} of {runEventsOnly.length})</span>
+        )}
       </div>
       <ul className="events-list-ul" ref={listEndRef}>
-        {events.map((ev, i) => {
+        {displayEvents.map((ev, i) => {
           const isExpanded = expandedId === i
           return (
             <li key={i} className={`events-list-item events-list-item-${(ev.nodeType ?? '').toLowerCase()}`}>

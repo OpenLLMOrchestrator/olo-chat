@@ -1,9 +1,17 @@
 import { useEffect, useRef } from 'react'
-import { getWebSocketUrl } from '../lib/wsUrl'
+import { getWsAccessToken } from '../lib/wsUrl'
+import { closeSharedWebSocket, getSharedWebSocket } from '../lib/wsSingleton'
 import { runEventsStore } from '../store/runEvents'
 import type { RunEventDto } from '../api/chatApi'
 
-const PING_INTERVAL_MS = 10_000
+const DEFAULT_PING_INTERVAL_SEC = 10
+
+function getPingIntervalMs(): number {
+  const raw = import.meta.env.VITE_WS_PING_INTERVAL_SEC
+  if (raw === undefined || raw === '') return DEFAULT_PING_INTERVAL_SEC * 1000
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? Math.round(n) * 1000 : DEFAULT_PING_INTERVAL_SEC * 1000
+}
 
 function makeLivenessEvent(status: 'ping' | 'pong', sequenceNumber: number): RunEventDto {
   return {
@@ -19,73 +27,117 @@ function makeLivenessEvent(status: 'ping' | 'pong', sequenceNumber: number): Run
 }
 
 /**
- * Connects to backend WebSocket, sends PING every 10s, and pushes ping/pong events to runEventsStore
- * so they appear in the Events panel and the bell turns green.
+ * Uses the single shared WebSocket (validated with access token). Sends PING at the configured
+ * interval and pushes ping/pong events to runEventsStore. Only one live connection for the app.
+ * Token: sessionStorage.accessToken or VITE_WS_ACCESS_TOKEN.
  */
 export function useWebSocketLiveness() {
   const seqRef = useRef(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const wsRef = useRef<WebSocket | null>(null)
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mountedRef = useRef(true)
 
   useEffect(() => {
-    const url = getWebSocketUrl()
-    if (!url) return
+    mountedRef.current = true
+    const token = getWsAccessToken()
+    const ws = getSharedWebSocket(token)
+    if (!ws) return
 
-    const connect = () => {
-      try {
-        const ws = new WebSocket(url)
-        wsRef.current = ws
+    const intervalMs = getPingIntervalMs()
 
-        ws.onopen = () => {
-          const sendPing = () => {
-            if (ws.readyState !== WebSocket.OPEN) return
-            seqRef.current += 1
-            const seq = seqRef.current
-            runEventsStore.getState().addEvent(makeLivenessEvent('ping', seq))
-            ws.send(JSON.stringify({ type: 'PING' }))
-          }
-          sendPing()
-          intervalRef.current = setInterval(sendPing, PING_INTERVAL_MS)
+    const startPingInterval = (socket: WebSocket) => {
+      const sendPing = () => {
+        if (socket.readyState !== WebSocket.OPEN) return
+        seqRef.current += 1
+        const seq = seqRef.current
+        runEventsStore.getState().addEvent(makeLivenessEvent('ping', seq))
+        socket.send(JSON.stringify({ type: 'PING' }))
+      }
+      sendPing()
+      intervalRef.current = setInterval(sendPing, intervalMs)
+    }
+
+    if (ws.readyState === WebSocket.OPEN) {
+      startPingInterval(ws)
+      return () => {
+        mountedRef.current = false
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current)
+          intervalRef.current = null
         }
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data)
-            if (data?.type === 'PONG') {
-              seqRef.current += 1
-              runEventsStore.getState().addEvent(makeLivenessEvent('pong', seqRef.current))
-            }
-          } catch {
-            // ignore non-JSON or parse errors
-          }
-        }
-
-        ws.onclose = () => {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current)
-            intervalRef.current = null
-          }
-          wsRef.current = null
-        }
-
-        ws.onerror = () => {
-          ws.close()
-        }
-      } catch {
-        // connection failed, no-op
       }
     }
 
-    connect()
-    return () => {
+    ws.onopen = () => {
+      if (!mountedRef.current) return
+      startPingInterval(ws)
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data?.type === 'PONG') {
+          seqRef.current += 1
+          runEventsStore.getState().addEvent(makeLivenessEvent('pong', seqRef.current))
+        } else if (data?.type === 'RUN_EVENT' && data?.payload) {
+          runEventsStore.getState().addEvent(data.payload)
+        } else if (data?.type === 'ERROR') {
+          console.warn('[WS] ERROR from server:', data.code, data.message)
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    ws.onclose = () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
       }
-      if (wsRef.current) {
-        wsRef.current.close()
-        wsRef.current = null
+      if (!mountedRef.current) return
+      reconnectRef.current = setTimeout(() => {
+        reconnectRef.current = null
+        const w = getSharedWebSocket(getWsAccessToken())
+        if (w && w !== ws) {
+          w.onopen = () => mountedRef.current && startPingInterval(w)
+          w.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data)
+              if (data?.type === 'PONG') {
+                seqRef.current += 1
+                runEventsStore.getState().addEvent(makeLivenessEvent('pong', seqRef.current))
+              } else if (data?.type === 'RUN_EVENT' && data?.payload) {
+                runEventsStore.getState().addEvent(data.payload)
+              } else if (data?.type === 'ERROR') {
+                console.warn('[WS] ERROR from server:', data.code, data.message)
+              }
+            } catch {
+              // ignore
+            }
+          }
+          w.onclose = ws.onclose
+          w.onerror = ws.onerror
+        }
+      }, intervalMs)
+    }
+
+    ws.onerror = () => {
+      ws.close()
+    }
+
+    return () => {
+      mountedRef.current = false
+      if (reconnectRef.current) {
+        clearTimeout(reconnectRef.current)
+        reconnectRef.current = null
       }
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      // Do not close the shared socket here. React Strict Mode runs effect → cleanup → effect again;
+      // closing here would create a second connection on remount. Keep one live connection; the
+      // browser closes it on tab close. Use closeSharedWebSocket() only when token changes or app teardown.
     }
   }, [])
 }

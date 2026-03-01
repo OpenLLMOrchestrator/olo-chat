@@ -49,7 +49,12 @@ export function parsePath(pathname: string): ParsedPath | null {
   // /:sectionId/run/:runId/:subId — run-level route
   if (segments[1] === 'run') {
     const runIdRaw = segments[2]
-    const subIdRaw = segments[3]
+    let subIdRaw = segments[3]
+    try {
+      if (subIdRaw != null) subIdRaw = decodeURIComponent(subIdRaw)
+    } catch {
+      // leave as-is
+    }
     // Missing runId: /runtime/run//overview or /runtime/run/overview (only 3 segments) -> list view
     if (segments.length < 4 || !runIdRaw || runIdRaw.trim() === '') {
       return {
@@ -63,8 +68,13 @@ export function parsePath(pathname: string): ParsedPath | null {
     return { sectionId, subId, runId: runIdRaw }
   }
 
-  // /:sectionId/:subId?
-  const subIdRaw = segments[1] ?? getDefaultSubId(sectionId)
+  // /:sectionId/:subId? — decode so subId is stored without %3A (e.g. queue name with :1.0)
+  let subIdRaw = segments[1] ?? getDefaultSubId(sectionId)
+  try {
+    subIdRaw = decodeURIComponent(subIdRaw)
+  } catch {
+    // leave as-is if not valid encoding
+  }
   const defaultSub = getDefaultSubId(sectionId)
   const subId = isValidSubId(sectionId, subIdRaw, false) ? subIdRaw : defaultSub
   return { sectionId, subId, runId: null }
