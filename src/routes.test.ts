@@ -36,9 +36,9 @@ describe('routes', () => {
         subId: 'overview',
         runId: null,
       })
-      expect(parsePath('/documents/library')).toEqual({
+      expect(parsePath('/documents/rag-upload')).toEqual({
         sectionId: 'documents',
-        subId: 'library',
+        subId: 'rag-upload',
         runId: null,
       })
     })
@@ -74,7 +74,7 @@ describe('routes', () => {
     it('builds section + sub path', () => {
       expect(buildPath('chat', 'conversation')).toBe('/chat/conversation')
       expect(buildPath('rag', 'overview')).toBe('/rag/overview')
-      expect(buildPath('documents', 'library')).toBe('/documents/library')
+      expect(buildPath('documents', 'rag-upload')).toBe('/documents/rag-upload')
     })
 
     it('ignores runId (no run-level routes)', () => {
@@ -164,7 +164,7 @@ describe('routes', () => {
     it('returns first subOption for section', () => {
       expect(getDefaultSubId('chat')).toBe('conversation')
       expect(getDefaultSubId('rag')).toBe('overview')
-      expect(getDefaultSubId('documents')).toBe('library')
+      expect(getDefaultSubId('documents')).toBe('rag-upload')
     })
   })
 

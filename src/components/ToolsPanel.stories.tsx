@@ -61,7 +61,7 @@ export const Documents: Story = {
     ...base,
     expanded: true,
     sectionId: 'documents',
-    subId: 'library',
+    subId: 'rag-upload',
     runSelected: false,
   },
 }

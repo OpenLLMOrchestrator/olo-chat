@@ -14,6 +14,7 @@ import {
 import { runEventsStore } from '../store/runEvents'
 import { chatSessionsStore } from '../store/chatSessions'
 import { conversationPanelStore } from '../store/conversationPanel'
+import { sessionDisplayStore } from '../store/sessionDisplay'
 import { queueDisplayName } from '../lib/queueDisplayName'
 import { getCurrentSocket, subscribeToRun } from '../lib/wsSingleton'
 
@@ -142,6 +143,15 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
       .catch((e) => setError(String(e.message)))
       .finally(() => setLoading(false))
   }, [sessionId])
+
+  // Auto-set first message preview for session list (so Conversation panel shows a useful label)
+  useEffect(() => {
+    if (!sessionId || messages.length === 0) return
+    const firstUser = messages.find((m) => m.role === 'user')
+    if (firstUser?.content?.trim()) {
+      sessionDisplayStore.getState().setFirstMessagePreview(sessionId, firstUser.content)
+    }
+  }, [sessionId, messages])
 
   useEffect(() => {
     scrollToBottom()

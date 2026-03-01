@@ -1,5 +1,6 @@
 import { SECTIONS, type SectionId } from '../types/layout'
 import { ChatView } from './ChatView'
+import { RAGUploadView } from './RAGUploadView'
 import type { Tenant } from '../types/tenant'
 import { queueDisplayName } from '../lib/queueDisplayName'
 
@@ -47,12 +48,18 @@ export function MainContent({
     )
   }
 
-  if (sectionId === 'chat') {
+  if (sectionId === 'chat' || sectionId === 'rag') {
+    const options = section.subOptions
+    const resolvedLabel = options.find((o) => o.id === subId)?.label ?? (subId || section.label)
+    const currentLabel = resolvedLabel?.includes(':') ? queueDisplayName(resolvedLabel) : resolvedLabel
     return (
       <main className="main-content main-content-chat">
         <div className="main-content-header">
-          <h1 className="main-content-title">Chat</h1>
-          <span className="main-content-subtitle"> → Conversation with Olo backend</span>
+          <h1 className="main-content-title">{section.label}</h1>
+          <span className="main-content-subtitle">
+            {' '}
+            → {sectionId === 'chat' ? 'Conversation with Olo backend' : currentLabel}
+          </span>
         </div>
         <div className="main-content-body main-content-body-chat">
           <ChatView tenantId={tenantId || undefined} taskQueue={subId || undefined} newChatTrigger={newChatTrigger} />
@@ -74,14 +81,13 @@ export function MainContent({
         </h1>
       </div>
       <div className="main-content-body">
-        <div className="main-content-placeholder-inner">
-          {sectionId === 'rag' && (
-            <>RAG: <strong>{currentLabel}</strong> — configuration and status (placeholder).</>
-          )}
-          {sectionId === 'documents' && (
-            <>Documents: <strong>{currentLabel}</strong> — document library (placeholder).</>
-          )}
-        </div>
+        {sectionId === 'documents' ? (
+          <RAGUploadView />
+        ) : (
+          <div className="main-content-placeholder-inner">
+            <p>Select a category from the left panel.</p>
+          </div>
+        )}
       </div>
     </main>
   )

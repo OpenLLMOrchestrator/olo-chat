@@ -157,7 +157,8 @@
 }
 
 /* Pipeline dropdown under Conversation when a queue is selected (Chat/RAG) */
-.conversation-pipeline-dropdown {
+.conversation-pipeline-dropdown,
+.conversation-rag-dropdown {
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid #27272a;
   display: flex;
@@ -207,8 +208,12 @@
   border-radius: 8px;
   cursor: pointer;
 }
-.conversation-new-chat:hover {
+.conversation-new-chat:hover:not(:disabled) {
   background: #2563eb;
+}
+.conversation-new-chat:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Conversation list: sessions one below the other, Delete all at bottom */
@@ -232,10 +237,19 @@
   align-items: center;
   min-width: 0;
 }
+.conversation-session-btn-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
 .conversation-session-btn {
   flex: 1;
   min-width: 0;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   padding: 0.4rem 0.75rem;
   font-size: 0.8rem;
   text-align: left;
@@ -244,18 +258,71 @@
   border: none;
   border-left: 3px solid transparent;
   cursor: pointer;
+  overflow: hidden;
+}
+.conversation-session-label {
+  display: block;
+  width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.conversation-session-preview {
+  display: block;
+  width: 100%;
+  font-size: 0.7rem;
+  color: #71717a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 0.1rem;
 }
 .conversation-session-btn:hover {
   background: #27272a;
   color: #e4e4e7;
 }
+.conversation-session-btn:hover .conversation-session-preview {
+  color: #a1a1aa;
+}
 .conversation-session-btn.active {
   background: #27272a;
   color: #fafafa;
   border-left-color: #3b82f6;
+}
+.conversation-session-btn.active .conversation-session-preview {
+  color: #d4d4d8;
+}
+.conversation-session-edit {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  font-size: 0.75rem;
+  line-height: 1;
+  color: #71717a;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.conversation-session-edit:hover {
+  color: #a1a1aa;
+  opacity: 1;
+}
+.conversation-session-edit-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+  color: #e4e4e7;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: 4px;
+  outline: none;
+}
+.conversation-session-edit-input:focus {
+  border-color: #3b82f6;
 }
 .conversation-session-delete {
   flex-shrink: 0;

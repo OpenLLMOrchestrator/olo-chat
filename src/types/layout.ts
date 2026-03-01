@@ -45,7 +45,7 @@ export const SECTIONS: SectionConfig[] = [
     label: 'Documents',
     subtitle: 'Document management',
     subOptions: [
-      { id: 'library', label: 'Library', description: 'Document library' },
+      { id: 'rag-upload', label: 'RAG upload', description: 'Upload documents with an existing or new RAG token' },
     ],
   },
 ]

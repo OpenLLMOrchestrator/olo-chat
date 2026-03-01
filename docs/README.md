@@ -4,6 +4,17 @@ Frontend for the **Olo** chat flow. It provides a chat UI that talks to the **ol
 
 ---
 
+## Documentation
+
+| Doc | Description |
+|-----|-------------|
+| **[UI_FEATURES.md](./UI_FEATURES.md)** | All UI features: top bar, left panel (tenant, sections, queues), main content (Chat, RAG, Documents), Tools panel (Conversation), Properties panel (Events, tenant config), URL/query, resizable panels, feature flags. |
+| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Technical architecture: stack, routing, Zustand state, API layer, config, lib, component tree, and Chat data flow. |
+| **[CHAT_UI.md](./CHAT_UI.md)** | Chat section in detail: APIs used, queue vs pipeline, UI behavior, execution model. |
+| **[DOCKER.md](./DOCKER.md)** | Docker build/run, env vars, Docker Compose (dev/prod), GitHub Actions. |
+
+---
+
 ## Overview
 
 - **Chat** — Primary view: create a session, send messages, and see run events (PLANNER, MODEL, TOOL, HUMAN, plus WebSocket PING/PONG liveness) streamed in real time. Backed by `POST /api/sessions/{sessionId}/messages`, `GET /api/runs/{runId}/events` (SSE), and optional WebSocket `/ws` for run events and liveness.

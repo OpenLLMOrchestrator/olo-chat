@@ -19,11 +19,54 @@ These are the only environment variables the frontend uses. They must be set at 
 | **VITE_API_BASE** | Yes (for API/WS) | `http://localhost:7080` | Base URL of the olo backend. The app will call `{VITE_API_BASE}/api` for REST and `ws://...` derived from this for WebSocket. No trailing slash. Examples: `http://localhost:7080`, `https://api.example.com`. |
 | **VITE_WS_ACCESS_TOKEN** | No | _(empty)_ | Optional WebSocket access token. If set, it is used when the app has no token in `sessionStorage` (e.g. before login). Prefer setting the token at runtime via login and `sessionStorage.accessToken`. |
 | **VITE_WS_PING_INTERVAL_SEC** | No | `10` | WebSocket ping interval (and reconnect delay) in seconds. Used for liveness checks. |
+| **VITE_RAG_OPTIONS** | No | _(empty)_ | Comma-separated list of existing RAG ids/names for the Documents → RAG upload dropdown (e.g. `default,project-alpha`). |
+| **VITE_RAG_QUEUE** | No | _(empty)_ | Workflow task queue used when starting the RAG upload workflow (queue/pipeline from env). |
+| **VITE_RAG_PIPELINE** | No | _(empty)_ | Workflow pipeline id used when starting the RAG upload workflow. |
 
 ### Notes
 
 - **CORS**: The backend must allow requests from the origin where the frontend is served (e.g. the domain or port of the Docker host).
 - **Build-time only**: Vite replaces `import.meta.env.VITE_*` during `vite build`. To change these values you must rebuild the image with new build args.
+
+---
+
+## Docker Compose
+
+Sample Compose files are provided for local development and production.
+
+### Development (`docker-compose.dev.yml`)
+
+Uses fixed build args pointing at a backend on the host at `http://localhost:7080`. Run the olo backend on your machine (e.g. port 7080) before starting the frontend.
+
+```bash
+# Ensure backend is running at http://localhost:7080, then:
+docker compose -f docker-compose.dev.yml up --build
+```
+
+- Frontend: **http://localhost:3000**
+- Build args: `VITE_API_BASE=http://localhost:7080`, `VITE_WS_PING_INTERVAL_SEC=10`
+
+### Production (`docker-compose.prod.yml`)
+
+Build args come from the environment. Create a `.env` from `.env.example`, set `VITE_API_BASE` (and optionally the others), then run.
+
+```bash
+cp .env.example .env
+# Edit .env and set VITE_API_BASE (e.g. https://api.myolo.com)
+
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+- Frontend: **http://localhost:80** (or map another port in the compose file).
+- `VITE_API_BASE` is **required** (Compose will error if unset). Use the URL that the **browser** should use to reach the API (e.g. `https://api.myolo.com`).
+- Optional: `VITE_WS_ACCESS_TOKEN`, `VITE_WS_PING_INTERVAL_SEC` (default `10`).
+- Container runs with `restart: unless-stopped`.
+
+| File | Purpose |
+|------|---------|
+| **docker-compose.dev.yml** | Dev: frontend only, backend on host at 7080, port 3000. |
+| **docker-compose.prod.yml** | Prod: frontend with build args from `.env`, port 80, restart policy. |
+| **.env.example** | Template for production `.env` (VITE_API_BASE, etc.). |
 
 ---
 
@@ -117,6 +160,9 @@ echo <PAT> | docker login ghcr.io -u <user> --password-stdin
 | **Dockerfile** | Multi-stage build: Node build, then Nginx serving `dist`. |
 | **nginx.conf** | Nginx config: SPA fallback to `index.html`, static asset caching. |
 | **.dockerignore** | Excludes `node_modules`, `dist`, `.git`, env files, tests, etc. |
+| **docker-compose.dev.yml** | Development: frontend only, backend on host at 7080. |
+| **docker-compose.prod.yml** | Production: frontend with build args from `.env`. |
+| **.env.example** | Example env vars for production Compose. |
 | **.github/workflows/docker-build.yml** | Builds and (on main/master) pushes the image to ghcr.io. |
 
 ---

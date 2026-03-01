@@ -4,9 +4,14 @@ import { create } from 'zustand'
 export interface ConversationPanelState {
   selectedPipelineId: string
   setSelectedPipelineId: (id: string) => void
+  /** Selected RAG in the Conversation panel (RAG section only). Listed between Pipeline and New chat. */
+  selectedRagId: string
+  setSelectedRagId: (id: string) => void
 }
 
 export const conversationPanelStore = create<ConversationPanelState>((set) => ({
   selectedPipelineId: '',
   setSelectedPipelineId: (selectedPipelineId) => set({ selectedPipelineId }),
+  selectedRagId: '',
+  setSelectedRagId: (selectedRagId) => set({ selectedRagId }),
 }))

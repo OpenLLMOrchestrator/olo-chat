@@ -1,0 +1,16 @@
+# Development: frontend only. Backend should run on host at http://localhost:7080.
+# Usage: docker compose -f docker-compose.dev.yml up --build
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: http://localhost:7080
+        VITE_WS_ACCESS_TOKEN: ""
+        VITE_WS_PING_INTERVAL_SEC: "10"
+    ports:
+      - "3000:80"
+    # Optional: use host network so container shares host's localhost (Linux only)
+    # network_mode: host
