@@ -36,8 +36,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set Docker Hub flag
+        id: dockerhub
+        run: |
+          if [ -n "$DOCKERHUB_USERNAME" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"; else echo "enabled=false" >> "$GITHUB_OUTPUT"; fi
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+
       - name: Log in to Docker Hub
-        if: (github.event_name != 'workflow_dispatch' || github.event.inputs.push) && secrets.DOCKERHUB_USERNAME != ''
+        if: (github.event_name != 'workflow_dispatch' || github.event.inputs.push) && steps.dockerhub.outputs.enabled == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
