@@ -77,11 +77,12 @@ export async function getFilesFromDataTransfer(dataTransfer: DataTransfer): Prom
       if (f) acc.push(f)
       continue
     }
-    if (isDirectoryEntry(entry)) {
-      await readDirectoryEntries(entry, acc)
+    const entryTyped = entry as unknown as FileSystemFileEntry | FileSystemDirectoryEntry
+    if (isDirectoryEntry(entryTyped)) {
+      await readDirectoryEntries(entryTyped, acc)
     } else {
       await new Promise<void>((res) => {
-        ;(entry as FileSystemFileEntry).file((file) => {
+        ;(entryTyped as FileSystemFileEntry).file((file) => {
           acc.push(file)
           res()
         })

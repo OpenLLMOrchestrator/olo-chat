@@ -77,9 +77,7 @@ export function LeftPanel({
       return section.subOptions ?? []
     }
     const list =
-      runSelected &&
-      (section.id === 'runtime' || section.id === 'ledger') &&
-      section.runSelectedOptions?.length
+      runSelected && section.runSelectedOptions?.length
         ? section.runSelectedOptions
         : section.subOptions
     return list.filter((sub) => !sub.featureId || isFeatureEnabled(sub.featureId as import('../config/features').FeatureId))

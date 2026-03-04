@@ -98,14 +98,14 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
   const setSessions = chatSessionsStore((s) => s.setSessions)
   const setSelectedSessionId = chatSessionsStore((s) => s.setSelectedSessionId)
   const [connected, setConnected] = useState(false)
-  const [sessionsLoading, setSessionsLoading] = useState(false)
+  const [, setSessionsLoading] = useState(false)
   const [messages, setMessages] = useState<ChatMessageDto[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const [runEvents, setRunEvents] = useState<RunEventDto[]>([])
-  const [activeRunId, setActiveRunId] = useState<string | null>(null)
+  const [, setActiveRunId] = useState<string | null>(null)
   /** Set when run completes/fails from API poll (so we show fallback message even if SSE didn't deliver SYSTEM event) */
   const [runCompletedFromPoll, setRunCompletedFromPoll] = useState(false)
   /** Current response from GET /api/runs/{runId}/response — queried when we receive events or poll while in progress */

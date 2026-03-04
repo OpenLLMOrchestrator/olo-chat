@@ -15,7 +15,7 @@ export interface RunEventsState {
 
 let onRunEventCallback: OnRunEventCallback | null = null
 
-export const runEventsStore = create<RunEventsState>((set, get) => ({
+export const runEventsStore = create<RunEventsState>((set) => ({
   runId: null,
   events: [],
 

@@ -1,7 +1,6 @@
 import { useState, useEffect, type CSSProperties } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { TopBar } from './components/TopBar'
-import { OloLogo } from './components/OloLogo'
 import { LeftPanel } from './components/LeftPanel'
 import { ToolsPanel } from './components/ToolsPanel'
 import { MainContent } from './components/MainContent'

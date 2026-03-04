@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { getWsAccessToken } from '../lib/wsUrl'
-import { closeSharedWebSocket, getSharedWebSocket } from '../lib/wsSingleton'
+import { getSharedWebSocket } from '../lib/wsSingleton'
 import { runEventsStore } from '../store/runEvents'
 import type { RunEventDto } from '../api/chatApi'
 
