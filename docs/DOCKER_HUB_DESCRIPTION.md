@@ -2,6 +2,8 @@
 
 Use the content below in Docker Hub for your image’s **Full Description**. It is written in Markdown so it renders nicely on the image page.
 
+**Quick copy:** The same copy-paste content is in [.github/DOCKER_HUB_DESCRIPTION.md](../.github/DOCKER_HUB_DESCRIPTION.md) — open that file and copy everything into Docker Hub's Full Description field.
+
 ---
 
 ## Copy from here (for Docker Hub Full Description)
