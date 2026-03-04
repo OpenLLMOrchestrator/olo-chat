@@ -235,7 +235,6 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
     setRunEvents([])
     setRunCompletedFromPoll(false)
     setQueriedResponse(null)
-    runEventsStore.getState().clear()
     // Show user message in main panel immediately (align with previous behavior)
     const optimisticUser: ChatMessageDto = {
       messageId: `opt-${Date.now()}`,
@@ -321,7 +320,6 @@ export function ChatView({ tenantId: tenantIdProp, taskQueue, newChatTrigger = 0
       setRunEvents([])
       setRunCompletedFromPoll(false)
       setQueriedResponse(null)
-      runEventsStore.getState().clear()
       sendMessage(sessionId, content.trim(), {
         taskQueue: q ? queueDisplayName(q) : undefined,
       })

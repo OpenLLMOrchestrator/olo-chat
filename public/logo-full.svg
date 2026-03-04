@@ -4,5 +4,5 @@
   <circle cx="0.6" cy="0" r="0.4" />
   <line x1="0.4" y1="-0.42" x2="0.4" y2="0.42" />
   <!-- Text "Olo" (simplified geometric) -->
-  <text x="1.05" y="0.35" font-family="system-ui, sans-serif" font-weight="700" font-size="0.5" fill="currentColor">Olo</text>
+  <text x="1.05" y="0.35" font-family="system-ui, sans-serif" font-weight="700" font-size="0.5" fill="currentColor">olo</text>
 </svg>

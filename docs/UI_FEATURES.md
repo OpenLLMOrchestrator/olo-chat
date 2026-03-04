@@ -54,8 +54,8 @@ Content depends on the current section and sub-option.
 | **Header** | Title “Chat” and subtitle “→ Conversation with Olo backend”. |
 | **Chat view** | Message list, text input, send button, and (when a run is active) live run events and assistant reply derived from the event stream. |
 | **Session** | On first load (or when no session exists), the app creates a session via `POST /api/sessions` with `tenantId`, and optionally `taskQueue`, `pipelineId`, and `overrides` (future). Messages belong to the selected session. |
-| **Message list** | Fetched with `GET /api/sessions/{sessionId}/messages`. User and assistant messages are shown; assistant content comes from the last MODEL COMPLETED event or from `GET /api/runs/{runId}/response` when the run completes. |
-| **Input & Send** | User types in the input; Send submits via `POST /api/sessions/{sessionId}/messages` with `content` and optional `taskQueue`. While a run is in progress, Send is disabled until the run completes (or fails). |
+| **Message list** | Fetched with `GET /api/sessions/{sessionId}/messages`. User and assistant messages are shown; assistant content comes from the last MODEL COMPLETED event or from `GET /api/runs/{runId}/response` when the run completes. When the assistant response is empty or metadata-only (e.g. `{"source":"temporal"}`), the UI shows: *"Apologise, Couldn't generate the response for your query."* |
+| **Input & Send** | User types in the input; Send submits via `POST /api/sessions/{sessionId}/messages` with `content` and optional `taskQueue` (from the Conversation panel Queue selection). Queue and pipeline are read from the store at send time so the correct scope is always used. While a run is in progress, Send is disabled until the run completes (or fails). |
 | **Resend** | User can resend a previous user message (triggers a new run). |
 | **Common prompts** | Optional quick-select prompts (e.g. “Hello, what can you help me with?”) to fill the input. |
 | **Health** | App checks `GET /api/health`; connection status can be shown (e.g. backend not reachable). |
@@ -86,10 +86,10 @@ Content depends on the current section and sub-option.
 | **Toggle** | Expand/collapse; state in URL query `tools` (0/1). Collapsed label: “Conversation”. |
 | **Queue dropdown** | **Chat only.** At the top of the Conversation panel. Lists workflow queues from `GET /api/tenants/{tenantId}/queues`. Selecting a queue loads pipelines for that queue and scopes the session list and new sessions. Queue display names use `queueDisplayName()` (e.g. shorten version suffixes). |
 | **Pipeline dropdown** | **Chat only.** Below the Queue dropdown. Pipelines come from `GET /api/tenants/{tenantId}/queues/{queueName}/config` for the selected queue. Selecting a pipeline filters the session list and is used when creating a new session. |
-| **New chat** | **Chat only.** Creates a new session via `POST /api/sessions` with current tenant, `taskQueue`, `pipelineId`; clears events and selects the new session. |
-| **Sessions list** | **Chat only.** Sessions for the current tenant + queue + pipeline (`GET /api/tenants/{tenantId}/sessions`). Each session shows a **primary label**: custom name (if set), otherwise truncated **first-message preview** (auto-set when messages load), otherwise date/time. **Edit** (✎) to set or clear custom name; persisted in `localStorage`. |
+| **New chat** | **Chat only.** Creates a new session via `POST /api/sessions` with current tenant, `taskQueue`, `queueName`, `pipelineId` (from the Conversation panel dropdowns); selects the new session. Event history in the Events panel is not cleared. |
+| **Sessions list** | **Chat only.** Shows only sessions for the **selected queue + pipeline**. Fetched with `GET /api/tenants/{tenantId}/sessions?queue=...&pipeline=...` (queue = display name, no version). Default: first or previously selected queue; pipeline from queue config. Each session: primary label (custom name, or first-message preview, or date/time); **Edit** (✎) persisted in `localStorage`. |
 | **Knowledge sources** | When section is **Knowledge**, the Tools panel shows the title “Knowledge sources” and a list of knowledge sources (placeholder until API). |
-| **Delete session** | Per-session delete (×) calls `DELETE /api/sessions/{sessionId}` and refreshes the list. If the deleted session was selected, the first remaining session is selected. |
+| **Delete session** | Per-session delete (×) calls `DELETE /api/sessions/{sessionId}` and removes that session from the list optimistically (no refetch). If the deleted session was selected, the first remaining session is selected. |
 | **Delete all** | Deletes all sessions for the current tenant/queue/pipeline via the API and clears selection and run events. |
 | **Contextual tools** | Optional tool entries from the tool registry (e.g. quick-actions, filters, search). Tool components receive context (section, sub, runSelected, storeContext); if no component is registered, label/description are shown. |
 
@@ -102,7 +102,7 @@ The Tools panel is hidden for the Documents section and when the tenant config f
 | Feature | Description |
 |--------|-------------|
 | **Toggle** | Expand/collapse; state in URL query `props` (0/1). Collapsed label: “Events”. The toggle button is the primary way to open/close the Events panel. |
-| **Run events (Chat)** | When the section is Chat, the panel shows **EventsList**: a list of run events (PLANNER, MODEL, TOOL, HUMAN, SYSTEM) for the current run. Liveness events (PING/PONG) are excluded. Last N events (e.g. 25) are shown; each item can be expanded to show timestamp, input, output, metadata. List auto-scrolls to the bottom as new events arrive. |
+| **Run events (Chat)** | When the section is Chat, the panel shows **EventsList**: a list of run events (PLANNER, MODEL, TOOL, HUMAN, SYSTEM) for the current run. Liveness events (PING/PONG) are excluded. Last N events (e.g. 25) are shown; each item can be expanded to show timestamp, input, output, metadata. List auto-scrolls to the bottom as new events arrive. **Event history is not cleared when the user clicks Send**; new run events are appended so users can review past runs. |
 | **Tenant config** | When editing tenant configuration, the panel shows **TenantConfigForm** (add new tenant or edit existing). Saving/deleting uses the tenant config store and REST API. |
 | **Empty state** | When there is no run yet: “Send a message in Chat to see run events here.” When run is set but no events: “Waiting for events…”. |
 
@@ -112,7 +112,7 @@ The Tools panel is hidden for the Documents section and when the tenant config f
 
 | Aspect | Description |
 |--------|-------------|
-| **Path** | `/:sectionId/:subId` (e.g. `/chat/conversation`, `/rag/overview`). Sub-ids are encoded (e.g. queue names with `:1.0`). Invalid paths redirect to the last valid path or default (`/chat/conversation`). |
+| **Path** | `/:sectionId/:subId` (e.g. `/chat/conversation`, `/knowledge/sources`, `/documents/upload`). Invalid paths redirect to the last valid path or default (`/chat/conversation`). |
 | **Query** | `tenant`, `menu`, `tools`, `props`. Used for tenant selection and panel open/closed state. Enables deep links, back/forward, and bookmarking. |
 | **Default path** | `/chat/conversation` when no previous selection is stored. |
 | **Last path / tenant** | Last selected path and tenant are stored in `localStorage` and used when opening `/` or when the backend list doesn’t contain the current tenant. |

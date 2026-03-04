@@ -36,8 +36,8 @@ All global UI and domain state lives in Zustand stores under `src/store/`.
 |-------|---------|
 | **ui** (`store/ui.ts`) | Panel expanded state (left, tools, properties), panel widths (persisted to `localStorage`), theme (light/dark, persisted), current navigation (sectionId, subId, runId, tenantId). URL sync in `App` pushes path/query into this store. |
 | **chatSessions** (`store/chatSessions.ts`) | List of session summaries and the selected session ID. Updated when sessions are fetched or user selects a session. |
-| **runEvents** (`store/runEvents.ts`) | Current run ID and list of run events (SSE/WebSocket). `addEvent()` appends events; `setOnRunEventCallback()` registers a callback used by ChatView (e.g. to poll run response or refetch messages). Liveness (PING/PONG) events are stored here too but filtered out in the Events list UI. |
-| **conversationPanel** (`store/conversationPanel.ts`) | Selected pipeline ID (within the current queue). Scopes session list and new-session creation for Chat. |
+| **runEvents** (`store/runEvents.ts`) | Current run ID and list of run events (SSE/WebSocket). `addEvent()` appends events; the list is **not cleared when the user clicks Send** so event history accumulates. `setOnRunEventCallback()` registers a callback used by ChatView (e.g. to poll run response or refetch messages). Liveness (PING/PONG) events are stored here too but filtered out in the Events list UI. |
+| **conversationPanel** (`store/conversationPanel.ts`) | Selected queue ID and pipeline ID in the Conversation panel. Scopes session list, new-session creation, and send-message for Chat. Queue and pipeline are read from the store at send/new-chat time to avoid stale values. |
 | **tenantConfig** (`store/tenantConfig.ts`) | Tenants list (from `GET /api/tenants`), loading flag, selected tenant for config form, “adding new” flag. Actions: loadTenants, selectTenant, startAddNew, saveTenant, deleteTenant. Tenant CRUD uses `api/rest.ts`; list comes from `chatApi.getTenants()`. |
 
 Stores are used via `store((s) => s.x)` for subscriptions; actions are called as `store.getState().action()` or from components that already have the selector.
@@ -61,7 +61,7 @@ Types (e.g. `ChatMessageDto`, `RunEventDto`, `SessionSummaryDto`, `TenantDto`, `
 | Module | Purpose |
 |--------|---------|
 | **features** (`config/features.ts`) | Feature flags per section (chat, knowledge, documents). `isFeatureEnabled(id)` is used to hide sections and redirect invalid section paths. |
-| **layout** (`types/layout.ts`) | `SECTIONS` array: Chat (conversation + queues), Knowledge (sources, create, status), Documents (upload). Drives left-panel menu and valid sub-ids. |
+| **layout** (`types/layout.ts`) | `SECTIONS` array: Chat (conversation only in left panel), Knowledge (sources, create, status), Documents (upload). Drives left-panel menu and valid sub-ids. Queues are in the Conversation panel (Tools), not the left panel. |
 | **toolRegistry** (`config/toolRegistry.ts`) | Map of tool id → metadata (label, description, slot). Optional map of tool id → React component. Tools receive `ToolContext` (sectionId, subId, runSelected, storeContext). `getToolsForView(sectionId, subId, runSelected)` returns tools for the current view; layout can attach `toolIds` to sub-options. |
 
 ---
@@ -85,13 +85,14 @@ Types (e.g. `ChatMessageDto`, `RunEventDto`, `SessionSummaryDto`, `TenantDto`, `
 App
 ├── TopBar (logo, theme toggle)
 └── app-body (CSS vars for panel widths)
-    ├── LeftPanel (tenant, sections, queues)
+    ├── LeftPanel (tenant, sections; Chat shows only Conversation submenu)
     ├── PanelResizeHandle (left)
-    ├── ToolsPanel (pipeline; RAG dropdown in RAG section; New chat, sessions, Delete, tools)  [hidden for documents / tenant config]
+    ├── ToolsPanel (Chat: Queue dropdown, Pipeline dropdown, New chat, sessions list, Delete; Knowledge: sources list)  [hidden for documents / tenant config]
     ├── PanelResizeHandle (tools)
     ├── MainContent
-    │   ├── ChatView (when sectionId === 'chat' or 'rag') — same conversation UI: messages, input, send, run events
-    │   ├── RAGUploadView (when sectionId === 'documents') — RAG token, file/folder, Start RAG
+    │   ├── ChatView (when sectionId === 'chat') — messages, input, send, run events; queue/pipeline from store
+    │   ├── KnowledgeView (when sectionId === 'knowledge')
+    │   ├── RAGUploadView (when sectionId === 'documents', subId === 'upload')
     │   └── placeholder for other sections
     ├── PanelResizeHandle (properties)
     └── PropertiesPanel (Events list or TenantConfigForm)
@@ -100,20 +101,20 @@ App
 ```
 
 - **App** owns URL ↔ store sync, tenant defaulting, and panel query updates. It passes section/sub, tenant, runId, and callbacks into panels and MainContent.
-- **ChatView** owns session/message/run state for the conversation: creates session, fetches messages, sends messages, subscribes to run events (SSE or WebSocket), and derives assistant reply from events or run response API.
-- **LeftPanel** fetches queues for the selected tenant and renders section/sub and queue list.
-- **ToolsPanel** fetches queue config (pipelines) and session list; triggers New chat (via `onNewChat` from App) and delete session/delete all.
-- **EventsList** reads from `runEventsStore` and renders the last N run events (excluding liveness).
+- **ChatView** owns session/message/run state: creates session (with taskQueue, queueName, pipelineId from store), fetches sessions for selected queue+pipeline (queue as display name), fetches messages, sends messages (taskQueue from store), subscribes to run events (SSE or WebSocket), derives assistant reply from events or run response API. Empty or metadata-only assistant response shows a fallback message.
+- **LeftPanel** renders section/sub; under Chat only "Conversation" is shown (no queue list in left panel).
+- **ToolsPanel** (Chat): fetches queues and queue config (pipelines), renders Queue and Pipeline dropdowns, session list (scoped by selection), New chat, delete session (optimistic remove), delete all. Triggers New chat via `onNewChat` from App.
+- **EventsList** reads from `runEventsStore` and renders the last N run events (excluding liveness); event history is not cleared on Send.
 
 ---
 
 ## Data flow (Chat)
 
-1. **Load** — App syncs URL → ui store; tenantConfig loads tenants; ChatView checks health, fetches sessions for tenant+queue+pipeline, selects or creates session, fetches messages.
-2. **Send message** — User sends; ChatView calls `sendMessage()` → backend returns `runId`; ChatView sets active run in runEventsStore, subscribes to events via SSE or WebSocket `SUBSCRIBE_RUN`; events are pushed to runEventsStore and local state; on MODEL COMPLETED or run response API, assistant text is shown; on SYSTEM COMPLETED or run status completed/failed, Send is re-enabled and messages refetched.
-3. **New chat** — User clicks “New chat” in ToolsPanel → App increments trigger → ChatView creates new session, clears events, selects new session, refetches sessions list.
+1. **Load** — App syncs URL to ui store; tenantConfig loads tenants. ToolsPanel fetches queues and sets first (or previous) queue, then pipelines. ChatView fetches sessions for tenant + selected queue (display name) + pipeline; if no queue selected, session list is empty. User selects or creates session; messages fetched.
+2. **Send message** — User sends; ChatView reads queue from store, calls sendMessage with taskQueue; backend returns runId. ChatView subscribes to events; new events append (event history not cleared). Assistant text from MODEL COMPLETED or run response API; empty response shows fallback message. On completion, Send re-enabled and messages refetched.
+3. **New chat** — User clicks “New chat” in ToolsPanel ; App increments trigger; ChatView reads queue and pipeline from store, creates session (tenantId, taskQueue, queueName, pipelineId), selects new session, refetches list. Event history is not cleared.
 4. **Switch session** — User selects another session in the list → ChatView updates selectedSessionId, refetches messages for that session.
-5. **Run events panel** — EventsList subscribes to runEventsStore; new events append to the list and panel scrolls to bottom; user can expand an event to see input/output/metadata.
+5. **Run events panel** — EventsList reads runEventsStore; new events append (history persists across sends); panel scrolls to bottom; user can expand an event to see input/output/metadata.
 
 ---
 

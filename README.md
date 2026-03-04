@@ -1,45 +1,44 @@
-# Olo (frontend)
+# Olo Chat
 
-REST-oriented frontend for Olo. Built with React, TypeScript, and Vite. Proxies `/api` to the backend (olo-be).
+A chat interface for **Olo** — start conversations, send messages, and follow run events in real time.
 
-## Requirements
+## For users
 
-- Node.js 18+
-- npm or pnpm
+- **Chat** — Pick a queue and pipeline, create a session, and chat. Run events (planner, model, tools) stream live in the sidebar.
+- **Knowledge** — Manage knowledge sources and see status (sources, create, status).
+- **Documents** — Upload files and run RAG workflows from the UI.
 
-## Setup
+The app talks to the **Olo backend** for sessions, messages, and events. You choose your tenant, queue, and pipeline from the UI.
 
-```bash
-npm install
-```
+## Quick start
 
-## Run
+1. **Install** and **run** (ensure the Olo backend is running, e.g. on port 7080):
 
-```bash
-npm run dev
-```
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-App runs at `http://localhost:3000`. Ensure the olo backend is running on port **7080** for API calls (see `VITE_API_BASE` in `.env.development` and proxy in `vite.config.ts`).
+2. Open **http://localhost:3000** in your browser.
 
-## Build
+For backend setup, environment variables, Docker, and all technical details, see the **docs** below.
 
-```bash
-npm run build
-npm run preview
-```
+## Documentation
 
-## Storybook (UI in isolation)
+Everything technical lives in the **docs** folder:
 
-Develop and review UI components without running the backend or Redis:
+| Doc | What’s inside |
+|-----|----------------|
+| **[docs/README.md](docs/README.md)** | Overview, backend requirements, run instructions, project layout. |
+| **[docs/UI_FEATURES.md](docs/UI_FEATURES.md)** | All UI features: panels, navigation, Conversation, Events, feature flags. |
+| **[docs/CHAT_UI.md](docs/CHAT_UI.md)** | Chat in detail: APIs, queue/pipeline, run events, WebSocket. |
+| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | Technical architecture: stack, state, API, components. |
+| **[docs/DOCKER.md](docs/DOCKER.md)** | Docker build/run, env vars, Docker Compose, GitHub Actions, Docker Hub. |
 
-```bash
-npm run storybook
-```
+## Logo and assets
 
-Stories for TenantConfigurationList, TenantConfigForm, and ToolsPanel use mock data. Add stories in `src/**/*.stories.tsx` for new components.
+Logo and related assets are in **public/** (e.g. `logo-full.svg`). See project docs for usage.
 
-## Docs
+---
 
-- **[docs/README.md](docs/README.md)** — Overview, backend (olo on 7080), run instructions, project layout.
-- **[docs/CHAT_UI.md](docs/CHAT_UI.md)** — Chat section: APIs used, UI behavior, run events, WebSocket liveness.
-- **[src/store/README.md](src/store/README.md)** — Store discipline (one store per domain), current stores (ui, tenantConfig, runEvents), lifecycle.
+*For developers: requirements (Node 18+), build (`npm run build`), Storybook (`npm run storybook`), and store discipline are described in [docs/README.md](docs/README.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).*

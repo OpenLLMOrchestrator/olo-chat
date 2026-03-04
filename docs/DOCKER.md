@@ -6,7 +6,7 @@ This document describes how to build and run the olo-chat frontend as a Docker c
 
 - **Dockerfile**: Multi-stage build (Node for building the Vite app, then Nginx to serve static files).
 - **Environment variables**: All `VITE_*` values are **baked in at build time** by Vite. You pass them as Docker build args when building the image.
-- **GitHub Actions**: Workflow builds the image on push to `main`/`master` and can push to GitHub Container Registry (ghcr.io).
+- **GitHub Actions**: Workflow builds the image on push to `main`/`master` (or manual run) and pushes to GitHub Container Registry (ghcr.io) and, when secrets are set, to Docker Hub.
 
 ---
 
@@ -46,6 +46,22 @@ docker compose -f docker-compose.dev.yml up --build
 - Frontend: **http://localhost:3000**
 - Build args: `VITE_API_BASE=http://localhost:7080`, `VITE_WS_PING_INTERVAL_SEC=10`
 
+### Demo (`docker-compose.demo.yml`)
+
+For a quick demo: frontend only, with default backend URL `http://localhost:7080`. You can override with env (e.g. a remote demo API). Optionally add a backend service in the same file for an all-in-one demo.
+
+```bash
+# Backend on host at 7080:
+docker compose -f docker-compose.demo.yml up --build
+
+# Or point at a remote demo API (rebuild so the URL is baked in):
+VITE_API_BASE=https://demo-api.example.com docker compose -f docker-compose.demo.yml up --build
+```
+
+- Frontend: **http://localhost:3000**
+- `VITE_API_BASE` defaults to `http://localhost:7080`; set in env to override.
+- To run frontend + backend in one stack, uncomment the `backend` service in `docker-compose.demo.yml`, set the backend image (e.g. your olo backend image), then run the same command. The browser will use port 7080 on the host for the API.
+
 ### Production (`docker-compose.prod.yml`)
 
 Build args come from the environment. Create a `.env` from `.env.example`, set `VITE_API_BASE` (and optionally the others), then run.
@@ -65,6 +81,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 | File | Purpose |
 |------|---------|
 | **docker-compose.dev.yml** | Dev: frontend only, backend on host at 7080, port 3000. |
+| **docker-compose.demo.yml** | Demo: frontend only (or add backend service); port 3000, optional env override for backend URL. |
 | **docker-compose.prod.yml** | Prod: frontend with build args from `.env`, port 80, restart policy. |
 | **.env.example** | Template for production `.env` (VITE_API_BASE, etc.). |
 
@@ -122,8 +139,8 @@ docker run -d --name olo-chat-ui -p 3000:80 --restart unless-stopped olo-chat
 
 ### Trigger
 
-- **Push** to branches `main` or `master`: workflow runs and builds the image. If the branch is `main`/`master`, it also pushes to GitHub Container Registry (ghcr.io).
-- **Manual**: Run the workflow from the **Actions** tab (**Build and push Docker image** → **Run workflow**). You can add an input later to control whether to push.
+- **Push** to branches `main` or `master`: workflow runs, builds the image, and pushes to GitHub Container Registry (ghcr.io). If Docker Hub secrets are set, it also pushes to Docker Hub.
+- **Manual**: Run the workflow from the **Actions** tab (**Build and push Docker image** → **Run workflow**). Use the **push** input to choose whether to push to registries (default: true).
 
 ### Where to set build configuration
 
@@ -132,20 +149,32 @@ docker run -d --name olo-chat-ui -p 3000:80 --restart unless-stopped olo-chat
   - **VITE_WS_PING_INTERVAL_SEC**: Optional; default `10`.
 - **Repository secrets** (Settings → Secrets and variables → Actions → Secrets):
   - **VITE_WS_ACCESS_TOKEN**: Optional; only if you want a token baked in for WebSocket (usually leave unset).
+  - **DOCKERHUB_USERNAME**: Your Docker Hub username. If set, the workflow also pushes the image to Docker Hub as `docker.io/<DOCKERHUB_USERNAME>/olo-chat`.
+  - **DOCKERHUB_TOKEN**: Docker Hub access token (Settings → Security → Access tokens in Docker Hub). Required for push when **DOCKERHUB_USERNAME** is set.
 
 ### Image location and tags
 
-- Image: `ghcr.io/<owner>/<repo>` (e.g. `ghcr.io/myorg/olo-chat`).
-- Tags: branch name, Git SHA, and `latest` (only for `main`/`master`).
+- **GitHub Container Registry**: `ghcr.io/<owner>/<repo>` (e.g. `ghcr.io/myorg/olo-chat`).
+- **Docker Hub** (when secrets are set): `docker.io/<DOCKERHUB_USERNAME>/olo-chat`.
+- **Tags**: branch name, Git SHA, and `latest` (only for `main`/`master`).
 
 ### Pull and run (after workflow has run)
+
+**From GitHub Container Registry:**
 
 ```bash
 docker pull ghcr.io/<owner>/<repo>:latest
 docker run -p 3000:80 ghcr.io/<owner>/<repo>:latest
 ```
 
-For a private repo, create a PAT with `read:packages` and:
+**From Docker Hub:**
+
+```bash
+docker pull <DOCKERHUB_USERNAME>/olo-chat:latest
+docker run -p 3000:80 <DOCKERHUB_USERNAME>/olo-chat:latest
+```
+
+For a private ghcr.io repo, create a PAT with `read:packages` and:
 
 ```bash
 echo <PAT> | docker login ghcr.io -u <user> --password-stdin
@@ -161,9 +190,10 @@ echo <PAT> | docker login ghcr.io -u <user> --password-stdin
 | **nginx.conf** | Nginx config: SPA fallback to `index.html`, static asset caching. |
 | **.dockerignore** | Excludes `node_modules`, `dist`, `.git`, env files, tests, etc. |
 | **docker-compose.dev.yml** | Development: frontend only, backend on host at 7080. |
+| **docker-compose.demo.yml** | Demo: frontend with optional backend; port 3000, env override for API URL. |
 | **docker-compose.prod.yml** | Production: frontend with build args from `.env`. |
 | **.env.example** | Example env vars for production Compose. |
-| **.github/workflows/docker-build.yml** | Builds and (on main/master) pushes the image to ghcr.io. |
+| **.github/workflows/docker-build.yml** | Builds and (on main/master) pushes the image to ghcr.io and optionally to Docker Hub when **DOCKERHUB_USERNAME** and **DOCKERHUB_TOKEN** are set. |
 
 ---
 
