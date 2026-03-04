@@ -33,7 +33,8 @@ Everything technical lives in the **docs** folder:
 | **[docs/UI_FEATURES.md](docs/UI_FEATURES.md)** | All UI features: panels, navigation, Conversation, Events, feature flags. |
 | **[docs/CHAT_UI.md](docs/CHAT_UI.md)** | Chat in detail: APIs, queue/pipeline, run events, WebSocket. |
 | **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | Technical architecture: stack, state, API, components. |
-| **[docs/DOCKER.md](docs/DOCKER.md)** | Docker build/run, env vars, Docker Compose, GitHub Actions, Docker Hub. |
+| **[docs/DOCKER.md](docs/DOCKER.md)** | Docker build/run, env vars, Docker Compose (dev/demo/prod), GitHub Actions, Docker Hub. |
+| **[docs/DOCKER_HUB_DESCRIPTION.md](docs/DOCKER_HUB_DESCRIPTION.md)** | Copy-paste description for the Docker Hub image page. |
 
 ## Logo and assets
 

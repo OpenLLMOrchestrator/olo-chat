@@ -11,9 +11,12 @@ Stores are scoped by **domain** (runtime, ledger, configuration, etc.), not by U
 
 | Store | Domain | Purpose |
 |-------|--------|---------|
-| `ui.ts` | App shell | Panels, navigation (section/sub/run), theme, tenant dropdown, properties panel toggle |
-| `tenantConfig.ts` | Configuration (tenants) | Tenant list, selection, CRUD, loading |
-| `runEvents.ts` | Run execution | Run events (SSE + WebSocket RUN_EVENT), liveness events (PING/PONG); feeds Events panel and run-event strip |
+| `ui.ts` | App shell | Panels (expanded state, widths persisted), navigation (sectionId, subId, runId, tenantId), theme. URL sync in App. |
+| `chatSessions.ts` | Chat sessions | Session list and selected session ID. Fetched for tenant + queue + pipeline; updated on create/delete (optimistic where applicable). |
+| `conversationPanel.ts` | Conversation panel | Selected queue ID and pipeline ID. Scopes session list, new session, and send message; read at action time. |
+| `runEvents.ts` | Run execution | Current run ID and run events (SSE + WebSocket). addEvent, setRun, setOnRunEventCallback; liveness (PING/PONG) stored here; EventsList filters. |
+| `sessionDisplay.ts` | Session display | Per-session custom title and first-message preview. Persisted (localStorage), capped 80 entries. Used for list labels and delete cleanup. |
+| `tenantConfig.ts` | Configuration (tenants) | Tenant list (from GET /api/tenants), selection, CRUD (save/update/delete), loading, “adding new”. |
 
 ## Future domains (placeholders)
 

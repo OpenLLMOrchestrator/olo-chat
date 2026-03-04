@@ -1,12 +1,14 @@
 # Docker for olo-chat (frontend)
 
-This document describes how to build and run the olo-chat frontend as a Docker container, including all environment variable definitions and GitHub Actions setup.
+This document describes how to build and run the olo-chat frontend as a Docker container: environment variables, Docker Compose variants, local build/run, and GitHub Actions (ghcr.io and Docker Hub).
+
+---
 
 ## Overview
 
-- **Dockerfile**: Multi-stage build (Node for building the Vite app, then Nginx to serve static files).
-- **Environment variables**: All `VITE_*` values are **baked in at build time** by Vite. You pass them as Docker build args when building the image.
-- **GitHub Actions**: Workflow builds the image on push to `main`/`master` (or manual run) and pushes to GitHub Container Registry (ghcr.io) and, when secrets are set, to Docker Hub.
+- **Dockerfile** — Multi-stage: stage 1 uses Node to build the Vite app (`npm ci`, `npm run build`); stage 2 uses Nginx to serve the static `dist` on **port 80**. No runtime env; all config is baked in at build time.
+- **Environment variables** — All `VITE_*` values are **baked in at build time** by Vite. You pass them as Docker build args (or Compose `args` / CI variables). Changing the backend URL or RAG options requires a rebuild.
+- **GitHub Actions** — Workflow (`.github/workflows/docker-build.yml`) runs on push to `main`/`master` and on manual `workflow_dispatch`. Builds the image and pushes to GitHub Container Registry (ghcr.io). If repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` are set, also pushes to Docker Hub as `docker.io/<DOCKERHUB_USERNAME>/olo-chat`. Manual run has a **push** input (default: true) to control whether to push to registries.
 
 ---
 
@@ -22,6 +24,8 @@ These are the only environment variables the frontend uses. They must be set at 
 | **VITE_RAG_OPTIONS** | No | _(empty)_ | Comma-separated list of existing RAG ids/names for the Documents → RAG upload dropdown (e.g. `default,project-alpha`). |
 | **VITE_RAG_QUEUE** | No | _(empty)_ | Workflow task queue used when starting the RAG upload workflow (queue/pipeline from env). |
 | **VITE_RAG_PIPELINE** | No | _(empty)_ | Workflow pipeline id used when starting the RAG upload workflow. |
+
+**Where used** — `VITE_API_BASE`, `VITE_WS_ACCESS_TOKEN`, `VITE_WS_PING_INTERVAL_SEC` in `api/chatApi.ts`, `lib/wsUrl.ts`, `hooks/useWebSocketLiveness.ts`. RAG vars in `api/ragApi.ts` and Documents upload UI.
 
 ### Notes
 
@@ -199,6 +203,15 @@ echo <PAT> | docker login ghcr.io -u <user> --password-stdin
 
 ## Troubleshooting
 
-- **Blank page or wrong API URL**: Rebuild the image with the correct `VITE_API_BASE` for the environment where the app is served.
-- **CORS errors**: Configure the olo backend to allow the origin of the frontend (scheme + host + port).
-- **WebSocket fails**: Ensure `VITE_API_BASE` uses the same host/port the browser should use for WebSocket (e.g. `wss://` in production). The app derives the WebSocket URL from `VITE_API_BASE`.
+- **Blank page or wrong API URL** — Rebuild the image with the correct `VITE_API_BASE` for the environment where the app is served. The browser must be able to reach that URL for REST and WebSocket.
+- **CORS errors** — Configure the olo backend to allow the origin of the frontend (scheme + host + port). The origin is where the user opens the app (e.g. `http://localhost:3000` or your production domain).
+- **WebSocket fails** — Ensure `VITE_API_BASE` uses the same host/port the browser should use for WebSocket (e.g. `wss://` in production). The app derives the WebSocket URL from `VITE_API_BASE` (e.g. `https://api.example.com` → `wss://api.example.com/ws`).
+- **Documents upload dropdown empty** — Set `VITE_RAG_OPTIONS` at build time (comma-separated RAG ids) and rebuild.
+
+---
+
+## Related docs
+
+- [README.md](./README.md) — Overview and run instructions.
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — App architecture and build-time env.
+- [DOCKER_HUB_DESCRIPTION.md](./DOCKER_HUB_DESCRIPTION.md) — Copy-paste description for Docker Hub image page.
